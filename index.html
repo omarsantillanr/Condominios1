@@ -332,6 +332,18 @@
     let ubicacionGPS = { lat: null, lon: null, precision: null };
     let eventoTurnoSeleccionado = 'Entrada';
 
+    // --- FUNCION AUXILIAR PARA BIOMETRIA ---
+    function base64UrlToUint8Array(base64Url) {
+      const padding = '='.repeat((4 - base64Url.length % 4) % 4);
+      const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
     // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
     async function revisarSoporteBiometrico() {
       try {
@@ -357,7 +369,10 @@
         const credencial = await navigator.credentials.create({
           publicKey: {
             challenge: challenge,
-            rp: { name: "ERP Condominios" },
+            rp: { 
+              name: "ERP Condominios",
+              id: window.location.hostname 
+            },
             user: {
               id: new TextEncoder().encode(appData.usuario.id || "USR"),
               name: appData.usuario.email || "usuario@condominio.com",
@@ -369,16 +384,19 @@
             ],
             authenticatorSelection: {
               authenticatorAttachment: "platform", // Huella o Face ID del celular
-              userVerification: "required"
+              userVerification: "required",
+              residentKey: "required", // <- Define que es una Llave de Acceso
+              requireResidentKey: true
             },
             timeout: 60000
           }
         });
 
         if (credencial) {
-          localStorage.setItem("erp_bio_cred", credencial.id);
+          localStorage.setItem("erp_bio_cred", credencial.id); // Base64URL
           localStorage.setItem("erp_bio_tok", sessionStorage.getItem("tok"));
           alert("✓ Huella / Face ID vinculada con éxito. Ya puedes iniciar sesión tocando el sensor.");
+          revisarSoporteBiometrico();
         }
       } catch (err) {
         alert("No se pudo vincular la biometría: " + err.message);
@@ -394,9 +412,18 @@
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
 
+        // Transformamos el ID guardado a formato binario para que el teléfono lo encuentre
+        const credIdBuffer = base64UrlToUint8Array(credId);
+
         const assertion = await navigator.credentials.get({
           publicKey: {
             challenge: challenge,
+            rpId: window.location.hostname,
+            allowCredentials: [{
+              id: credIdBuffer,
+              type: "public-key",
+              transports: ["internal"]
+            }],
             userVerification: "required"
           }
         });
@@ -445,7 +472,7 @@
         $("btnVerificarCod").disabled = false;
         if (r.correcto) {
           sessionStorage.setItem("tok", r.token);
-          // Actualizar token biométrico si ya existía credencial
+          // Si el usuario reingresó con código, actualizamos el token biométrico por si caducó
           if (localStorage.getItem("erp_bio_cred")) {
             localStorage.setItem("erp_bio_tok", r.token);
           }
@@ -828,7 +855,7 @@
       }
     }
 
-    // --- ALTA DE USUARIOS ---
+    // --- ALTA USUARIOS ---
     function abrirModalAltaUsuario() {
       $("nuevoEmail").value = "";
       $("nuevoNombre").value = "";
@@ -910,7 +937,7 @@
       }
     }
 
-    // Inicialización
+    // Inicialización del sistema
     revisarSoporteBiometrico();
     if(sessionStorage.getItem("tok")) iniciarApp();
   </script>
