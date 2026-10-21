@@ -332,7 +332,7 @@
     let ubicacionGPS = { lat: null, lon: null, precision: null };
     let eventoTurnoSeleccionado = 'Entrada';
 
-    // --- FUNCION AUXILIAR PARA BIOMETRIA ---
+    // Conversión de Base64URL a Buffer para WebAuthn
     function base64UrlToUint8Array(base64Url) {
       const padding = '='.repeat((4 - base64Url.length % 4) % 4);
       const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -360,7 +360,7 @@
 
     async function vincularBiometriaDispositivo() {
       if (!window.PublicKeyCredential) {
-        return alert("Este dispositivo o navegador no admite biometría web (WebAuthn).");
+        return alert("Este dispositivo o navegador no admite biometría web.");
       }
       try {
         const challenge = new Uint8Array(32);
@@ -383,9 +383,9 @@
               { alg: -257, type: "public-key" } // RS256
             ],
             authenticatorSelection: {
-              authenticatorAttachment: "platform", // Huella o Face ID del celular
+              authenticatorAttachment: "platform",
               userVerification: "required",
-              residentKey: "required", // <- Define que es una Llave de Acceso
+              residentKey: "required",
               requireResidentKey: true
             },
             timeout: 60000
@@ -393,9 +393,9 @@
         });
 
         if (credencial) {
-          localStorage.setItem("erp_bio_cred", credencial.id); // Base64URL
+          localStorage.setItem("erp_bio_cred", credencial.id);
           localStorage.setItem("erp_bio_tok", sessionStorage.getItem("tok"));
-          alert("✓ Huella / Face ID vinculada con éxito. Ya puedes iniciar sesión tocando el sensor.");
+          alert("✓ Huella / Face ID vinculada con éxito. Ya puedes entrar tocando el sensor.");
           revisarSoporteBiometrico();
         }
       } catch (err) {
@@ -411,8 +411,6 @@
 
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
-
-        // Transformamos el ID guardado a formato binario para que el teléfono lo encuentre
         const credIdBuffer = base64UrlToUint8Array(credId);
 
         const assertion = await navigator.credentials.get({
@@ -430,7 +428,19 @@
 
         if (assertion) {
           sessionStorage.setItem("tok", tokenGuardado);
-          iniciarApp();
+          $("msgLog").innerText = "Iniciando sesión...";
+          
+          try {
+            await iniciarApp();
+          } catch (errServidor) {
+            // Si el token fue eliminado previamente o caducó
+            localStorage.removeItem("erp_bio_tok");
+            localStorage.removeItem("erp_bio_cred");
+            $("cajaBiometriaLogin").classList.add("oculto");
+            sessionStorage.removeItem("tok");
+            alert("Tu llave de acceso expiró en el servidor. Ingresa una vez con tu correo y código para renovarla con 'Vincular Huella'.");
+            location.reload();
+          }
         }
       } catch (err) {
         alert("Autenticación biométrica no completada: " + err.message);
@@ -472,7 +482,7 @@
         $("btnVerificarCod").disabled = false;
         if (r.correcto) {
           sessionStorage.setItem("tok", r.token);
-          // Si el usuario reingresó con código, actualizamos el token biométrico por si caducó
+          // Si ya tenía huella vinculada, actualizamos el token automáticamente
           if (localStorage.getItem("erp_bio_cred")) {
             localStorage.setItem("erp_bio_tok", r.token);
           }
@@ -486,8 +496,8 @@
       }
     }
 
-    async function salir() {
-      try { await llamarAPI("cerrarSesion"); } catch(e) {}
+    // Salir solo limpia la sesión en el navegador (bloquea la app sin destruir la llave biométrica del servidor)
+    function salir() {
       sessionStorage.removeItem("tok"); 
       location.reload();
     }
@@ -505,8 +515,7 @@
         aplicarPrivilegiosUI(appData.rolActivo, appData.usuario);
         pintarTabla();
       } catch (err) {
-        alert("Error de sesión: " + err.message);
-        salir();
+        throw err; // Permite a la biometría manejar la expiración
       }
     }
 
@@ -855,7 +864,7 @@
       }
     }
 
-    // --- ALTA USUARIOS ---
+    // --- ALTA DE USUARIOS ---
     function abrirModalAltaUsuario() {
       $("nuevoEmail").value = "";
       $("nuevoNombre").value = "";
@@ -937,7 +946,7 @@
       }
     }
 
-    // Inicialización del sistema
+    // Inicialización
     revisarSoporteBiometrico();
     if(sessionStorage.getItem("tok")) iniciarApp();
   </script>
