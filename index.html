@@ -8,7 +8,7 @@
     :root { 
       --bg: #f8fafc; --nav: #0f172a; --nav-hover: #1e293b; 
       --text: #334155; --primary: #2563eb; --card: #ffffff; 
-      --border: #e2e8f0; --danger: #ef4444; --success: #16a34a; --warning: #d97706;
+      --border: #e2e8f0; --danger: #ef4444; --success: #16a34a; --warning: #d97706; --purple: #9333ea;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
@@ -45,6 +45,7 @@
     .btn-danger { background: var(--danger); }
     .btn-success { background: var(--success); }
     .btn-warning { background: var(--warning); }
+    .btn-purple { background: var(--purple); }
     .btn-sm { padding: 6px 10px; font-size: 12px; min-height: 30px; }
     input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-size: 14px; background: white; }
 
@@ -89,11 +90,24 @@
 </head>
 <body>
 
+  <!-- LOGIN -->
   <div id="loginView">
     <div class="login-box">
       <h2 style="margin-bottom:6px; font-size:20px; text-align:center;">ERP Condominios</h2>
-      <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Ingresa tu correo para recibir un código de acceso.</p>
+      <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Accede al portal operativo y de gestión.</p>
       
+      <!-- BOTÓN BIOMÉTRICO (SI ESTÁ VINCULADO) -->
+      <div id="cajaBiometriaLogin" class="oculto" style="margin-bottom: 18px;">
+        <button class="btn btn-purple" style="width:100%; font-size:14px; padding: 12px;" onclick="ingresarConBiometria()">
+          🔐 Entrar con Huella / Face ID
+        </button>
+        <div style="display:flex; align-items:center; margin: 16px 0; color:#94a3b8; font-size:11px;">
+          <hr style="flex:1; border:none; border-top:1px solid var(--border);">
+          <span style="padding: 0 8px;">O CON CORREO</span>
+          <hr style="flex:1; border:none; border-top:1px solid var(--border);">
+        </div>
+      </div>
+
       <div id="p1">
         <label style="font-size:12px; font-weight:bold;">Correo registrado</label>
         <input type="email" id="email" placeholder="usuario@ejemplo.com">
@@ -109,6 +123,7 @@
     </div>
   </div>
 
+  <!-- APLICACIÓN PRINCIPAL -->
   <div id="appView" class="oculto">
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
@@ -151,6 +166,7 @@
         
         <div class="topbar-right">
           <div class="user-pill" id="userBadge">Cargando...</div>
+          <button class="btn btn-purple btn-sm" id="btnVincularBio" onclick="vincularBiometriaDispositivo()">🔐 Vincular Huella</button>
           <button class="btn btn-warning" id="btnRelojTop" onclick="abrirModalChecador()">⏱️ Checar</button>
           <button class="btn btn-success" id="btnAltaUsuario" onclick="abrirModalAltaUsuario()">+ Privilegio</button>
           <button class="btn" id="btnNuevo" onclick="modalCrud()">+ Nuevo</button>
@@ -169,7 +185,7 @@
     </div>
   </div>
 
-  <!-- MODAL CHECADOR (MISMA PANTALLA) -->
+  <!-- MODAL CHECADOR -->
   <div id="modalChecador" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
@@ -295,7 +311,6 @@
     // =========================================================================
     const URL_BACKEND_APPSCRIPT = "https://script.google.com/macros/s/AKfycbxcf_GVD7yY3mvufAFsbQJU6BsRB5qd4bM2og4SSi7BI9MqGGpRocxSRCWWcjISsNyhcw/exec";
 
-    // Función universal para comunicarse con Apps Script sin CORS preflight
     async function llamarAPI(accion, payload = {}) {
       const token = sessionStorage.getItem("tok") || "";
       const respuesta = await fetch(URL_BACKEND_APPSCRIPT, {
@@ -316,6 +331,84 @@
     let fotoBase64Capturada = null;
     let ubicacionGPS = { lat: null, lon: null, precision: null };
     let eventoTurnoSeleccionado = 'Entrada';
+
+    // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
+    async function revisarSoporteBiometrico() {
+      try {
+        if (window.PublicKeyCredential && 
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+          const credId = localStorage.getItem("erp_bio_cred");
+          const savedTok = localStorage.getItem("erp_bio_tok");
+          if (credId && savedTok) {
+            $("cajaBiometriaLogin").classList.remove("oculto");
+          }
+        }
+      } catch(e) {}
+    }
+
+    async function vincularBiometriaDispositivo() {
+      if (!window.PublicKeyCredential) {
+        return alert("Este dispositivo o navegador no admite biometría web (WebAuthn).");
+      }
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const credencial = await navigator.credentials.create({
+          publicKey: {
+            challenge: challenge,
+            rp: { name: "ERP Condominios" },
+            user: {
+              id: new TextEncoder().encode(appData.usuario.id || "USR"),
+              name: appData.usuario.email || "usuario@condominio.com",
+              displayName: appData.usuario.nombre || "Usuario"
+            },
+            pubKeyCredParams: [
+              { alg: -7, type: "public-key" },  // ES256
+              { alg: -257, type: "public-key" } // RS256
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform", // Huella o Face ID del celular
+              userVerification: "required"
+            },
+            timeout: 60000
+          }
+        });
+
+        if (credencial) {
+          localStorage.setItem("erp_bio_cred", credencial.id);
+          localStorage.setItem("erp_bio_tok", sessionStorage.getItem("tok"));
+          alert("✓ Huella / Face ID vinculada con éxito. Ya puedes iniciar sesión tocando el sensor.");
+        }
+      } catch (err) {
+        alert("No se pudo vincular la biometría: " + err.message);
+      }
+    }
+
+    async function ingresarConBiometria() {
+      try {
+        const credId = localStorage.getItem("erp_bio_cred");
+        const tokenGuardado = localStorage.getItem("erp_bio_tok");
+        if (!credId || !tokenGuardado) return alert("No hay huella registrada en este equipo.");
+
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const assertion = await navigator.credentials.get({
+          publicKey: {
+            challenge: challenge,
+            userVerification: "required"
+          }
+        });
+
+        if (assertion) {
+          sessionStorage.setItem("tok", tokenGuardado);
+          iniciarApp();
+        }
+      } catch (err) {
+        alert("Autenticación biométrica no completada: " + err.message);
+      }
+    }
 
     function toggleSidebar() {
       $("sidebar").classList.toggle("open");
@@ -352,6 +445,10 @@
         $("btnVerificarCod").disabled = false;
         if (r.correcto) {
           sessionStorage.setItem("tok", r.token);
+          // Actualizar token biométrico si ya existía credencial
+          if (localStorage.getItem("erp_bio_cred")) {
+            localStorage.setItem("erp_bio_tok", r.token);
+          }
           iniciarApp();
         } else {
           $("msgLog").innerText = r.mensaje;
@@ -731,7 +828,7 @@
       }
     }
 
-    // --- ALTA USUARIOS ---
+    // --- ALTA DE USUARIOS ---
     function abrirModalAltaUsuario() {
       $("nuevoEmail").value = "";
       $("nuevoNombre").value = "";
@@ -813,6 +910,8 @@
       }
     }
 
+    // Inicialización
+    revisarSoporteBiometrico();
     if(sessionStorage.getItem("tok")) iniciarApp();
   </script>
 </body>
