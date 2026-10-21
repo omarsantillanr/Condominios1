@@ -11,14 +11,25 @@
       --border: #e2e8f0; --danger: #ef4444; --success: #16a34a; --warning: #d97706; --purple: #9333ea;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     
     .oculto { display: none !important; }
+
+    /* Barra Superior de Modo Emulación / Soporte */
+    #bannerSoporte {
+      background: #7e22ce; color: white; padding: 8px 16px; font-size: 13px; font-weight: bold;
+      display: flex; justify-content: space-between; align-items: center; z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #bannerSoporte select {
+      background: white; color: #1e293b; padding: 4px 8px; border-radius: 4px; font-size: 12px;
+      margin-bottom: 0; border: none; font-weight: 500;
+    }
 
     #loginView { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: #e2e8f0; padding: 16px; }
     .login-box { background: var(--card); padding: 28px; border-radius: 12px; width: 100%; max-width: 380px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     
-    #appView { display: flex; width: 100%; height: 100%; position: relative; }
+    #appView { display: flex; width: 100%; flex: 1; min-height: 0; position: relative; }
     
     .sidebar { width: 250px; background: var(--nav); color: white; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 50; }
     .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
@@ -35,7 +46,7 @@
     .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     
     .btn-menu-toggle { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); padding: 4px; }
-    .user-pill { font-size: 12px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    .user-pill { font-size: 12px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
     
     .content { flex: 1; padding: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     
@@ -53,6 +64,10 @@
     table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; font-size: 13px; }
     th { background: #f8fafc; font-weight: 600; color: #475569; }
+    th.sortable { cursor: pointer; user-select: none; transition: background 0.2s; }
+    th.sortable:hover { background: #e2e8f0; color: #0f172a; }
+    .sort-icon { font-size: 11px; margin-left: 4px; color: #94a3b8; }
+    .sort-icon.activo { color: var(--primary); font-weight: bold; }
 
     .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
     .badge-Valido { background: #dcfce7; color: #15803d; }
@@ -90,13 +105,25 @@
 </head>
 <body>
 
+  <!-- BANNER MODO SOPORTE / EMULACIÓN -->
+  <div id="bannerSoporte" class="oculto">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span>👁️ MODO SOPORTE:</span>
+      <span id="txtInfoEmulacion" style="font-weight:normal;"></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <select id="selCambiarVistaSoporte" onchange="seleccionarUsuarioEmulado(this.value)"></select>
+      <button class="btn btn-sm btn-danger" onclick="restablecerVistaOriginal()">Salir de vista</button>
+    </div>
+  </div>
+
   <!-- LOGIN -->
   <div id="loginView">
     <div class="login-box">
       <h2 style="margin-bottom:6px; font-size:20px; text-align:center;">ERP Condominios</h2>
       <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Accede al portal operativo y de gestión.</p>
       
-      <!-- BOTÓN BIOMÉTRICO (SI ESTÁ VINCULADO) -->
+      <!-- BOTÓN BIOMÉTRICO -->
       <div id="cajaBiometriaLogin" class="oculto" style="margin-bottom: 18px;">
         <button class="btn btn-purple" style="width:100%; font-size:14px; padding: 12px;" onclick="ingresarConBiometria()">
           🔐 Entrar con Huella / Face ID
@@ -133,6 +160,7 @@
         <button style="background:none; border:none; color:white; font-size:18px; cursor:pointer;" onclick="toggleSidebar()">✕</button>
       </div>
       
+      <!-- Menú Administrador / SuperAdmin -->
       <div id="menuAdmin" class="oculto">
         <div class="nav-group">Inmuebles</div>
         <div class="nav-item activo" onclick="abrirModulo('Condominios', this)">Condominios</div>
@@ -142,8 +170,10 @@
         <div class="nav-item" onclick="abrirModulo('Usuarios', this)">Directorio Personal / Condóminos</div>
         <div class="nav-item" onclick="abrirModulo('Membresias', this)">Asignación de Privilegios</div>
         <div class="nav-item" onclick="abrirModulo('Asistencia', this)">⏱️ Bitácora de Asistencia</div>
+        <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias Globales</div>
       </div>
 
+      <!-- Menú Operativo / Técnico -->
       <div id="menuOperativo" class="oculto">
         <div class="nav-group">Operación Diaria</div>
         <div class="nav-item" onclick="abrirModalChecador()">⏱️ Checar Turno / Comida</div>
@@ -151,6 +181,7 @@
         <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias y Reportes</div>
       </div>
 
+      <!-- Menú Residente -->
       <div id="menuResidente" class="oculto">
         <div class="nav-group">Mi Portal</div>
         <div class="nav-item activo" onclick="abrirModulo('Incidencias', this)">Mis Reportes de Falla</div>
@@ -252,6 +283,7 @@
         <option value="residente">Residente / Condómino (con depto)</option>
         <option value="tecnico">Personal Operativo / Técnico (con checador)</option>
         <option value="administracion">Administración / Mesa Directiva</option>
+        <option value="superadmin">Super Administrador / Soporte Global</option>
       </select>
 
       <div id="cajaEspecialidad" class="oculto">
@@ -327,12 +359,16 @@
     let appData = null;
     let moduloActual = 'Incidencias';
     let editandoId = null;
+    let usuarioEmuladoActualId = "";
 
     let fotoBase64Capturada = null;
     let ubicacionGPS = { lat: null, lon: null, precision: null };
     let eventoTurnoSeleccionado = 'Entrada';
 
-    // Conversión de Base64URL a Buffer para WebAuthn
+    let columnaOrdenada = null;
+    let ordenAscendente = true;
+
+    // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
     function base64UrlToUint8Array(base64Url) {
       const padding = '='.repeat((4 - base64Url.length % 4) % 4);
       const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -344,7 +380,6 @@
       return outputArray;
     }
 
-    // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
     async function revisarSoporteBiometrico() {
       try {
         if (window.PublicKeyCredential && 
@@ -379,8 +414,8 @@
               displayName: appData.usuario.nombre || "Usuario"
             },
             pubKeyCredParams: [
-              { alg: -7, type: "public-key" },  // ES256
-              { alg: -257, type: "public-key" } // RS256
+              { alg: -7, type: "public-key" },
+              { alg: -257, type: "public-key" }
             ],
             authenticatorSelection: {
               authenticatorAttachment: "platform",
@@ -433,12 +468,11 @@
           try {
             await iniciarApp();
           } catch (errServidor) {
-            // Si el token fue eliminado previamente o caducó
             localStorage.removeItem("erp_bio_tok");
             localStorage.removeItem("erp_bio_cred");
             $("cajaBiometriaLogin").classList.add("oculto");
             sessionStorage.removeItem("tok");
-            alert("Tu llave de acceso expiró en el servidor. Ingresa una vez con tu correo y código para renovarla con 'Vincular Huella'.");
+            alert("Tu llave de acceso expiró en el servidor. Ingresa una vez con correo y código para renovarla.");
             location.reload();
           }
         }
@@ -482,7 +516,6 @@
         $("btnVerificarCod").disabled = false;
         if (r.correcto) {
           sessionStorage.setItem("tok", r.token);
-          // Si ya tenía huella vinculada, actualizamos el token automáticamente
           if (localStorage.getItem("erp_bio_cred")) {
             localStorage.setItem("erp_bio_tok", r.token);
           }
@@ -496,14 +529,13 @@
       }
     }
 
-    // Salir solo limpia la sesión en el navegador (bloquea la app sin destruir la llave biométrica del servidor)
     function salir() {
       sessionStorage.removeItem("tok"); 
       location.reload();
     }
 
-    // --- CARGA GENERAL ---
-    async function iniciarApp() {
+    // --- CARGA GENERAL Y MODALIDAD SOPORTE ---
+    async function iniciarApp(emularId = "") {
       const t = sessionStorage.getItem("tok");
       if(!t) return;
       $("loginView").classList.add("oculto");
@@ -511,26 +543,63 @@
       $("tablaBody").innerHTML = "<tr><td colspan='10'>Cargando registros...</td></tr>";
 
       try {
-        appData = await llamarAPI("cargarDatosDashboard");
+        appData = await llamarAPI("cargarDatosDashboard", { emularUsuarioId: emularId });
+        usuarioEmuladoActualId = emularId;
+
+        configurarBarraSoporte();
         aplicarPrivilegiosUI(appData.rolActivo, appData.usuario);
         pintarTabla();
       } catch (err) {
-        throw err; // Permite a la biometría manejar la expiración
+        throw err;
       }
+    }
+
+    function configurarBarraSoporte() {
+      const banner = $("bannerSoporte");
+      if (!appData.tienePoderSoporte) {
+        banner.classList.add("oculto");
+        return;
+      }
+
+      banner.classList.remove("oculto");
+      const sel = $("selCambiarVistaSoporte");
+      sel.replaceChildren();
+
+      sel.innerHTML = `<option value="">-- Mi vista (${appData.rolReal.toUpperCase()}) --</option>`;
+      (appData.usuarios || []).forEach(u => {
+        const esSeleccionado = u.usuario_id === usuarioEmuladoActualId ? "selected" : "";
+        sel.innerHTML += `<option value="${u.usuario_id}" ${esSeleccionado}>${u.nombre} (${u.email})</option>`;
+      });
+
+      if (appData.modoEmulacion) {
+        banner.style.background = "#b45309"; // Tono ámbar de alerta al suplantar
+        $("txtInfoEmulacion").innerText = `Viendo como: ${appData.usuario.nombre} [${appData.rolActivo.toUpperCase()}]`;
+      } else {
+        banner.style.background = "#7e22ce"; // Púrpura de soporte
+        $("txtInfoEmulacion").innerText = `Sesión Global de Soporte (${appData.usuarioReal.nombre})`;
+      }
+    }
+
+    function seleccionarUsuarioEmulado(userId) {
+      iniciarApp(userId);
+    }
+
+    function restablecerVistaOriginal() {
+      iniciarApp("");
     }
 
     function aplicarPrivilegiosUI(rol, user) {
       const subtitulo = user.especialidad ? ` - ${user.especialidad}` : '';
       $("userBadge").innerHTML = `<strong>${user.nombre}</strong> (${rol.toUpperCase()}${subtitulo})`;
 
-      if (rol === "administracion") {
+      if (rol === "superadmin" || rol === "administracion") {
         $("menuAdmin").classList.remove("oculto");
         $("menuOperativo").classList.add("oculto");
         $("menuResidente").classList.add("oculto");
         $("btnAltaUsuario").classList.remove("oculto");
         $("btnRelojTop").classList.remove("oculto");
         $("btnNuevo").classList.remove("oculto");
-        if(moduloActual !== "Asistencia") moduloActual = "Condominios";
+        if(moduloActual === "Asistencia" && rol !== "superadmin") moduloActual = "Condominios";
       } else if (rol === "tecnico") {
         $("menuAdmin").classList.add("oculto");
         $("menuOperativo").classList.remove("oculto");
@@ -554,6 +623,8 @@
     function abrirModulo(mod, el) {
       moduloActual = mod;
       $("moduloTitulo").innerText = mod;
+      columnaOrdenada = null;
+      ordenAscendente = true;
       document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("activo"));
       if(el) el.classList.add("activo");
       if(window.innerWidth <= 768) toggleSidebar();
@@ -581,11 +652,22 @@
       return c ? c.nombre : cId;
     }
 
+    // --- ORDENAMIENTO EN TABLAS ---
+    function ordenarPor(col) {
+      if (columnaOrdenada === col) {
+        ordenAscendente = !ordenAscendente;
+      } else {
+        columnaOrdenada = col;
+        ordenAscendente = true;
+      }
+      pintarTabla();
+    }
+
     function pintarTabla() {
       if(!appData) return;
       
       const clave = moduloActual.toLowerCase();
-      const datos = appData[clave] || appData[clave + 's'] || [];
+      let datos = [...(appData[clave] || appData[clave + 's'] || [])];
       const cols = colsVisibles[moduloActual] || [];
       
       const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
@@ -593,7 +675,41 @@
                     moduloActual === "Asistencia" ? "asistencia_id" :
                     moduloActual.slice(0,-1).toLowerCase() + "_id";
 
-      let th = cols.map(c => `<th>${c.toUpperCase()}</th>`).join("") + "<th>ACCIONES</th>";
+      if (columnaOrdenada && cols.includes(columnaOrdenada)) {
+        datos.sort((a, b) => {
+          let valA = a[columnaOrdenada] ?? "";
+          let valB = b[columnaOrdenada] ?? "";
+
+          if (columnaOrdenada === "usuario_id") {
+            valA = obtenerNombreUsuario(valA);
+            valB = obtenerNombreUsuario(valB);
+          } else if (columnaOrdenada === "condominio_id") {
+            valA = obtenerNombreCondo(valA);
+            valB = obtenerNombreCondo(valB);
+          }
+
+          const numA = parseFloat(String(valA).replace(",", "."));
+          const numB = parseFloat(String(valB).replace(",", "."));
+          const esNumerico = !isNaN(numA) && !isNaN(numB) && String(valA).trim() !== "" && String(valB).trim() !== "";
+
+          let res = 0;
+          if (esNumerico) {
+            res = numA - numB;
+          } else {
+            res = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+          }
+
+          return ordenAscendente ? res : -res;
+        });
+      }
+
+      let th = cols.map(c => {
+        let icono = '<span class="sort-icon">⇅</span>';
+        if (columnaOrdenada === c) {
+          icono = `<span class="sort-icon activo">${ordenAscendente ? '▲' : '▼'}</span>`;
+        }
+        return `<th class="sortable" onclick="ordenarPor('${c}')" title="Ordenar por ${c}">${c.toUpperCase()} ${icono}</th>`;
+      }).join("") + "<th>ACCIONES</th>";
       $("tablaHead").innerHTML = `<tr>${th}</tr>`;
 
       let tb = datos.map(d => {
@@ -746,7 +862,7 @@
           setTimeout(() => {
             $("modalChecador").classList.add("oculto");
             moduloActual = "Asistencia";
-            iniciarApp();
+            iniciarApp(usuarioEmuladoActualId);
           }, 1800);
         } else {
           $("btnGuardarChecada").disabled = false;
@@ -764,7 +880,9 @@
     function modalCrud(idEdit = null) {
       editandoId = idEdit;
       $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
-      $("btnBorrar").classList.toggle("oculto", !idEdit || appData.rolActivo !== "administracion");
+      
+      const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
+      $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
       
       const form = $("modalForm");
       form.innerHTML = "";
@@ -839,7 +957,7 @@
           idValor: editandoId
         });
         $("modal").classList.add("oculto");
-        iniciarApp();
+        iniciarApp(usuarioEmuladoActualId);
       } catch (err) {
         alert("Error al guardar: " + err.message);
       }
@@ -858,7 +976,7 @@
           idValor: editandoId
         });
         $("modal").classList.add("oculto");
-        iniciarApp();
+        iniciarApp(usuarioEmuladoActualId);
       } catch (err) {
         alert("Error al eliminar: " + err.message);
       }
@@ -937,7 +1055,7 @@
           $("msgAltaUsuario").innerText = r.mensaje;
           setTimeout(() => {
             $("modalAltaUsuario").classList.add("oculto");
-            iniciarApp();
+            iniciarApp(usuarioEmuladoActualId);
           }, 1800);
         }
       } catch (err) {
@@ -946,7 +1064,7 @@
       }
     }
 
-    // Inicialización
+    // Inicialización del sistema
     revisarSoporteBiometrico();
     if(sessionStorage.getItem("tok")) iniciarApp();
   </script>
