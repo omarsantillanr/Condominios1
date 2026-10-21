@@ -169,6 +169,7 @@
         <div class="nav-item" onclick="abrirModulo('Usuarios', this)">Directorio Personal / Condóminos</div>
         <div class="nav-item" onclick="abrirModulo('Privilegios', this)">Asignación de Privilegios</div>
         <div class="nav-item" onclick="abrirModulo('Asistencia', this)">⏱️ Bitácora de Asistencia</div>
+        <div class="nav-item" onclick="abrirModulo('Accesos', this)">📊 Auditoría de Accesos</div>
         <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias Globales</div>
       </div>
 
@@ -357,6 +358,39 @@
     let columnaOrdenada = null;
     let ordenAscendente = true;
 
+    // --- DETECTOR DE DISPOSITIVO Y NAVEGADOR ---
+    function detectarEntornoCliente() {
+      const ua = navigator.userAgent;
+      let nav = "Otro";
+      if (ua.indexOf("Firefox") > -1) nav = "Firefox";
+      else if (ua.indexOf("SamsungBrowser") > -1) nav = "Samsung Browser";
+      else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) nav = "Opera";
+      else if (ua.indexOf("Edg") > -1) nav = "Edge";
+      else if (ua.indexOf("Chrome") > -1) nav = "Chrome";
+      else if (ua.indexOf("Safari") > -1) nav = "Safari";
+
+      let disp = "PC / Escritorio";
+      if (/iPhone/.test(ua)) disp = "iPhone (iOS)";
+      else if (/iPad/.test(ua)) disp = "iPad (iPadOS)";
+      else if (/Android/.test(ua)) disp = "Android";
+      else if (/Macintosh|Mac OS X/.test(ua)) disp = "Mac";
+      else if (/Windows/.test(ua)) disp = "Windows";
+      else if (/Linux/.test(ua)) disp = "Linux";
+
+      return { navegador: nav, dispositivo: disp };
+    }
+
+    function registrarRastreoAcceso(nombreModulo) {
+      const token = sessionStorage.getItem("tok");
+      if (!token) return;
+      const entorno = detectarEntornoCliente();
+      llamarAPI("registrarAcceso", {
+        modulo: nombreModulo,
+        dispositivo: entorno.dispositivo,
+        navegador: entorno.navegador
+      }).catch(() => {});
+    }
+
     // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
     function base64UrlToUint8Array(base64Url) {
       const padding = '='.repeat((4 - base64Url.length % 4) % 4);
@@ -456,6 +490,7 @@
           
           try {
             await iniciarApp();
+            registrarRastreoAcceso("Ingreso Biométrico (Huella/FaceID)");
           } catch (errServidor) {
             localStorage.removeItem("erp_bio_tok");
             localStorage.removeItem("erp_bio_cred");
@@ -508,7 +543,8 @@
           if (localStorage.getItem("erp_bio_cred")) {
             localStorage.setItem("erp_bio_tok", r.token);
           }
-          iniciarApp();
+          await iniciarApp();
+          registrarRastreoAcceso("Ingreso con Código Temporal");
         } else {
           $("msgLog").innerText = r.mensaje;
         }
@@ -606,17 +642,22 @@
         $("btnNuevo").classList.remove("oculto");
         moduloActual = "Incidencias";
       }
-      $("moduloTitulo").innerText = moduloActual;
+      $("moduloTitulo").innerText = (moduloActual === "Privilegios") ? "Asignación de Privilegios" : 
+                                    (moduloActual === "Accesos") ? "Auditoría de Accesos" : moduloActual;
     }
 
     function abrirModulo(mod, el) {
       moduloActual = mod;
-      $("moduloTitulo").innerText = mod === "Privilegios" ? "Asignación de Privilegios" : mod;
+      $("moduloTitulo").innerText = (mod === "Privilegios") ? "Asignación de Privilegios" : 
+                                    (mod === "Accesos") ? "Auditoría de Accesos" : mod;
       columnaOrdenada = null;
       ordenAscendente = true;
       document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("activo"));
       if(el) el.classList.add("activo");
       if(window.innerWidth <= 768) toggleSidebar();
+      
+      // Registrar evento de navegación en auditoría de forma silenciosa
+      registrarRastreoAcceso(`Módulo: ${mod}`);
       pintarTabla();
     }
 
@@ -626,6 +667,7 @@
       Usuarios: ["usuario_id", "nombre", "email", "especialidad", "estado"],
       Privilegios: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Membresias: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
+      Accesos: ["acceso_id", "usuario_id", "email", "modulo", "fecha_hora", "dispositivo", "navegador"],
       Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "prioridad", "estado"],
       Asistencia: ["asistencia_id", "usuario_id", "condominio_id", "especialidad", "tipo_registro", "fecha_hora", "distancia_mts", "estatus_geocerca", "foto_url"]
     };
@@ -674,6 +716,7 @@
       const keyId = (moduloActual === "Usuarios") ? "usuario_id" : 
                     (moduloActual === "Privilegios" || moduloActual === "Membresias") ? "membresia_id" : 
                     (moduloActual === "Asistencia") ? "asistencia_id" :
+                    (moduloActual === "Accesos") ? "acceso_id" :
                     moduloActual.slice(0,-1).toLowerCase() + "_id";
 
       if (columnaOrdenada && cols.includes(columnaOrdenada)) {
@@ -730,11 +773,14 @@
             return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm" style="text-decoration:none; padding:4px 8px; font-size:11px;">📷 Ver Foto</a>` : '<small style="color:#94a3b8">Sin foto</small>'}</td>`;
           }
           if (c === "distancia_mts") return `<td>${d[c]} m</td>`;
+          if (c === "modulo") return `<td><span class="badge" style="background:#e0f2fe; color:#0369a1;">${d[c]}</span></td>`;
           return `<td>${d[c]||""}</td>`;
         }).join("");
 
-        let btnAccion = moduloActual === "Asistencia" 
-          ? `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Auditado</span>`
+        let btnAccion = (moduloActual === "Asistencia") 
+          ? `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Marcaje GPS</span>`
+          : (moduloActual === "Accesos")
+          ? `<span style="font-size:11px; color:#16a34a; font-weight:bold;">✓ Auditado</span>`
           : `<button class="btn btn-sm" onclick="modalCrud('${d[keyId]}')">✎ Editar</button>`;
 
         return `<tr>${tds}<td>${btnAccion}</td></tr>`;
@@ -749,7 +795,7 @@
       const val = valorActual !== undefined && valorActual !== null ? String(valorActual) : "";
       const listas = (appData && appData.listas) ? appData.listas : {};
 
-      // 1. Campos protegidos al editar Privilegios / Membresías
+      // 1. Campos protegidos al editar Privilegios / Membresías[cite: 1]
       if ((modulo === "Privilegios" || modulo === "Membresias") && esEdicion) {
         if (col === "usuario_id") {
           const nombreU = obtenerNombreUsuario(val);
@@ -767,7 +813,7 @@
         }
       }
 
-      // 2. Selector de ROL (con opciones cerradas)
+      // 2. Selector de ROL
       if (col === "rol") {
         const roles = listas.roles || [
           { id: "superadmin", nombre: "Super Administrador / Soporte Global" },
@@ -779,7 +825,7 @@
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 3. Selector de ESTADOS (Activo / Inactivo o Estados de Incidencias)
+      // 3. Selector de ESTADOS
       if (col === "estado") {
         if (modulo === "Incidencias") {
           const estadosInc = listas.estadosIncidencia || ["Pendiente", "En Proceso", "Por Validar", "Cerrada", "No Conforme", "Cancelada"];
@@ -825,14 +871,14 @@
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 8. Selector Relacional: CONDOMINIO_ID (al crear registros nuevos)
+      // 8. Selector Relacional: CONDOMINIO_ID
       if (col === "condominio_id" && modulo !== "Condominios") {
         const condos = appData.condominios || [];
         const opciones = condos.map(c => `<option value="${c.condominio_id}" ${val === c.condominio_id ? "selected" : ""}>${c.nombre} (${c.condominio_id})</option>`).join("");
         return `<select id="f_${columna}">${opciones || '<option value="">Sin condominios</option>'}</select>`;
       }
 
-      // 9. Selector Relacional: USUARIO_ID (al crear registros nuevos)
+      // 9. Selector Relacional: USUARIO_ID
       if (col === "usuario_id" && modulo !== "Usuarios") {
         const usrs = appData.usuarios || [];
         const opciones = usrs.map(u => `<option value="${u.usuario_id}" ${val === u.usuario_id ? "selected" : ""}>${u.nombre} (${u.email})</option>`).join("");
@@ -851,7 +897,7 @@
         return `<textarea id="f_${columna}" rows="3">${val}</textarea>`;
       }
 
-      // 12. Llaves primarias en modo edición (Lectura)
+      // 12. Llaves primarias en modo edición
       const esLlavePrimaria = (modulo === "Condominios" && col === "condominio_id") ||
                               (modulo === "Usuarios" && col === "usuario_id") ||
                               (modulo === "Departamentos" && col === "departamento_id") ||
