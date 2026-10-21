@@ -15,7 +15,6 @@
     
     .oculto { display: none !important; }
 
-    /* Barra Superior de Modo Emulación / Soporte */
     #bannerSoporte {
       background: #7e22ce; color: white; padding: 8px 16px; font-size: 13px; font-weight: bold;
       display: flex; justify-content: space-between; align-items: center; z-index: 1000;
@@ -168,7 +167,7 @@
         
         <div class="nav-group">Personal y Accesos</div>
         <div class="nav-item" onclick="abrirModulo('Usuarios', this)">Directorio Personal / Condóminos</div>
-        <div class="nav-item" onclick="abrirModulo('Membresias', this)">Asignación de Privilegios</div>
+        <div class="nav-item" onclick="abrirModulo('Privilegios', this)">Asignación de Privilegios</div>
         <div class="nav-item" onclick="abrirModulo('Asistencia', this)">⏱️ Bitácora de Asistencia</div>
         <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias Globales</div>
       </div>
@@ -305,7 +304,7 @@
   <div id="modal" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
-        <span id="modalTit">Crear/Editar</span>
+        <span id="modalTit">Editar</span>
         <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modal').classList.add('oculto')">&times;</span>
       </div>
       <div id="modalForm"></div>
@@ -612,7 +611,7 @@
 
     function abrirModulo(mod, el) {
       moduloActual = mod;
-      $("moduloTitulo").innerText = mod;
+      $("moduloTitulo").innerText = mod === "Privilegios" ? "Asignación de Privilegios" : mod;
       columnaOrdenada = null;
       ordenAscendente = true;
       document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("activo"));
@@ -625,6 +624,7 @@
       Condominios: ["condominio_id", "nombre", "latitud", "longitud", "radio_tolerancia_mts", "estado"],
       Departamentos: ["condominio_id", "departamento_id", "torre", "numero_departamento", "estado"],
       Usuarios: ["usuario_id", "nombre", "email", "especialidad", "estado"],
+      Privilegios: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Membresias: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "prioridad", "estado"],
       Asistencia: ["asistencia_id", "usuario_id", "condominio_id", "especialidad", "tipo_registro", "fecha_hora", "distancia_mts", "estatus_geocerca", "foto_url"]
@@ -643,8 +643,13 @@
     }
 
     function obtenerNombreRol(rolId) {
-      if (!appData || !appData.listas || !appData.listas.roles) return rolId;
-      const r = appData.listas.roles.find(x => x.id === String(rolId).toLowerCase());
+      const rolesCatalogo = (appData && appData.listas && appData.listas.roles) ? appData.listas.roles : [
+        { id: "superadmin", nombre: "Super Administrador / Soporte Global" },
+        { id: "administracion", nombre: "Administración / Mesa Directiva" },
+        { id: "tecnico", nombre: "Personal Operativo / Técnico" },
+        { id: "residente", nombre: "Residente / Condómino" }
+      ];
+      const r = rolesCatalogo.find(x => x.id === String(rolId).toLowerCase());
       return r ? r.nombre : rolId;
     }
 
@@ -662,13 +667,13 @@
     function pintarTabla() {
       if(!appData) return;
       
-      const clave = moduloActual.toLowerCase();
+      const clave = moduloActual === "Privilegios" ? "membresias" : moduloActual.toLowerCase();
       let datos = [...(appData[clave] || appData[clave + 's'] || [])];
       const cols = colsVisibles[moduloActual] || [];
       
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual === "Asistencia" ? "asistencia_id" :
+      const keyId = (moduloActual === "Usuarios") ? "usuario_id" : 
+                    (moduloActual === "Privilegios" || moduloActual === "Membresias") ? "membresia_id" : 
+                    (moduloActual === "Asistencia") ? "asistencia_id" :
                     moduloActual.slice(0,-1).toLowerCase() + "_id";
 
       if (columnaOrdenada && cols.includes(columnaOrdenada)) {
@@ -739,19 +744,43 @@
     }
 
     // --- GENERADOR INTELIGENTE DE CONTROLES PARA CRUD UNIVERSAL ---
-    function generarCampoFormulario(columna, valorActual, modulo) {
+    function generarCampoFormulario(columna, valorActual, modulo, esEdicion, registroCompleto) {
+      const col = columna.toLowerCase();
       const val = valorActual !== undefined && valorActual !== null ? String(valorActual) : "";
-      const listas = appData.listas || {};
+      const listas = (appData && appData.listas) ? appData.listas : {};
 
-      // 1. Selector de ROL
-      if (columna === "rol") {
-        const roles = listas.roles || [];
+      // 1. Campos protegidos al editar Privilegios / Membresías
+      if ((modulo === "Privilegios" || modulo === "Membresias") && esEdicion) {
+        if (col === "usuario_id") {
+          const nombreU = obtenerNombreUsuario(val);
+          return `
+            <input type="text" value="${nombreU} (${val})" readonly style="background:#f1f5f9; cursor:not-allowed; color:#475569; font-weight:bold;">
+            <input type="hidden" id="f_${columna}" value="${val}">
+          `;
+        }
+        if (col === "condominio_id") {
+          const nombreC = obtenerNombreCondo(val);
+          return `
+            <input type="text" value="${nombreC} (${val})" readonly style="background:#f1f5f9; cursor:not-allowed; color:#475569; font-weight:bold;">
+            <input type="hidden" id="f_${columna}" value="${val}">
+          `;
+        }
+      }
+
+      // 2. Selector de ROL (con opciones cerradas)
+      if (col === "rol") {
+        const roles = listas.roles || [
+          { id: "superadmin", nombre: "Super Administrador / Soporte Global" },
+          { id: "administracion", nombre: "Administración / Mesa Directiva" },
+          { id: "tecnico", nombre: "Personal Operativo / Técnico" },
+          { id: "residente", nombre: "Residente / Condómino" }
+        ];
         const opciones = roles.map(r => `<option value="${r.id}" ${val.toLowerCase() === r.id.toLowerCase() ? "selected" : ""}>${r.nombre}</option>`).join("");
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 2. Selector de ESTADOS
-      if (columna === "estado") {
+      // 3. Selector de ESTADOS (Activo / Inactivo o Estados de Incidencias)
+      if (col === "estado") {
         if (modulo === "Incidencias") {
           const estadosInc = listas.estadosIncidencia || ["Pendiente", "En Proceso", "Por Validar", "Cerrada", "No Conforme", "Cancelada"];
           const opciones = estadosInc.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e}</option>`).join("");
@@ -763,82 +792,86 @@
         }
       }
 
-      // 3. Selector de CATEGORÍAS (Incidencias)
-      if (columna === "categoria") {
-        const cats = listas.categorias || [];
+      // 4. Selector de DEPARTAMENTO_ID
+      if (col === "departamento_id" && modulo !== "Departamentos") {
+        const condoId = (registroCompleto && registroCompleto.condominio_id) ? registroCompleto.condominio_id : "";
+        let deptos = appData.departamentos || [];
+        if (condoId) {
+          deptos = deptos.filter(d => d.condominio_id === condoId && d.estado !== "Inactivo");
+        }
+        let opciones = `<option value="">-- Sin departamento / No aplica --</option>`;
+        opciones += deptos.map(d => `<option value="${d.departamento_id}" ${val === d.departamento_id ? "selected" : ""}>${d.departamento_id} (Torre ${d.torre || '-'} - Depto ${d.numero_departamento || '-'})</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 5. Selector de CATEGORÍAS
+      if (col === "categoria") {
+        const cats = listas.categorias || ["Plomeria", "Electricidad", "Elevador", "Limpieza", "Seguridad", "Albanileria", "Areas comunes", "Otro"];
         const opciones = cats.map(cat => `<option value="${cat}" ${val === cat ? "selected" : ""}>${cat}</option>`).join("");
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 4. Selector de PRIORIDADES (Incidencias)
-      if (columna === "prioridad") {
+      // 6. Selector de PRIORIDADES
+      if (col === "prioridad") {
         const prios = listas.prioridades || ["Baja", "Media", "Alta", "Urgente"];
         const opciones = prios.map(p => `<option value="${p}" ${val === p ? "selected" : ""}>${p}</option>`).join("");
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 5. Selector de ESPECIALIDADES
-      if (columna === "especialidad") {
-        const esp = ["", "General", ...(listas.especialidades || [])];
+      // 7. Selector de ESPECIALIDADES
+      if (col === "especialidad") {
+        const esp = ["", "General", ...(listas.especialidades || ["Limpieza", "Seguridad / Guardia", "Mantenimiento General", "Jardinería", "Conserjería"])];
         const opciones = esp.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e ? e : "-- Ninguna / General --"}</option>`).join("");
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 6. Selector Relacional: CONDOMINIO_ID (cuando no estamos en la tabla de condominios)
-      if (columna === "condominio_id" && modulo !== "Condominios") {
+      // 8. Selector Relacional: CONDOMINIO_ID (al crear registros nuevos)
+      if (col === "condominio_id" && modulo !== "Condominios") {
         const condos = appData.condominios || [];
         const opciones = condos.map(c => `<option value="${c.condominio_id}" ${val === c.condominio_id ? "selected" : ""}>${c.nombre} (${c.condominio_id})</option>`).join("");
         return `<select id="f_${columna}">${opciones || '<option value="">Sin condominios</option>'}</select>`;
       }
 
-      // 7. Selector Relacional: USUARIO_ID (cuando estamos en Membresías o Incidencias)
-      if (columna === "usuario_id" && modulo !== "Usuarios") {
+      // 9. Selector Relacional: USUARIO_ID (al crear registros nuevos)
+      if (col === "usuario_id" && modulo !== "Usuarios") {
         const usrs = appData.usuarios || [];
         const opciones = usrs.map(u => `<option value="${u.usuario_id}" ${val === u.usuario_id ? "selected" : ""}>${u.nombre} (${u.email})</option>`).join("");
         return `<select id="f_${columna}">${opciones || '<option value="">Sin usuarios</option>'}</select>`;
       }
 
-      // 8. Selector Relacional: DEPARTAMENTO_ID (cuando estamos en Membresías o Incidencias)
-      if (columna === "departamento_id" && modulo !== "Departamentos") {
-        const deptos = appData.departamentos || [];
-        let opciones = `<option value="">-- Sin departamento --</option>`;
-        opciones += deptos.map(d => `<option value="${d.departamento_id}" ${val === d.departamento_id ? "selected" : ""}>${d.departamento_id} (Torre ${d.torre || '-'} - Depto ${d.numero_departamento || '-'})</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      // 9. Selector de EVENTOS DE TURNO
-      if (columna === "tipo_registro") {
+      // 10. Selector de EVENTOS DE TURNO
+      if (col === "tipo_registro") {
         const eventos = listas.eventosTurno || ["Entrada", "Salida a Comer", "Regreso de Comer", "Salida"];
         const opciones = eventos.map(ev => `<option value="${ev}" ${val === ev ? "selected" : ""}>${ev}</option>`).join("");
         return `<select id="f_${columna}">${opciones}</select>`;
       }
 
-      // 10. Campo DESCRIPCIÓN (Multilínea)
-      if (columna === "descripcion") {
+      // 11. Campo DESCRIPCIÓN
+      if (col === "descripcion") {
         return `<textarea id="f_${columna}" rows="3">${val}</textarea>`;
       }
 
-      // 11. LLAVE PRIMARIA EN MODO EDICIÓN (Lectura únicamente)
-      const esLlavePrimaria = (modulo === "Condominios" && columna === "condominio_id") ||
-                              (modulo === "Usuarios" && columna === "usuario_id") ||
-                              (modulo === "Departamentos" && columna === "departamento_id") ||
-                              (modulo === "Membresias" && columna === "membresia_id") ||
-                              (modulo === "Incidencias" && columna === "incidencia_id");
+      // 12. Llaves primarias en modo edición (Lectura)
+      const esLlavePrimaria = (modulo === "Condominios" && col === "condominio_id") ||
+                              (modulo === "Usuarios" && col === "usuario_id") ||
+                              (modulo === "Departamentos" && col === "departamento_id") ||
+                              ((modulo === "Privilegios" || modulo === "Membresias") && col === "membresia_id") ||
+                              (modulo === "Incidencias" && col === "incidencia_id");
 
       if (esLlavePrimaria && val) {
         return `<input type="text" id="f_${columna}" value="${val}" readonly style="background:#f1f5f9; cursor:not-allowed;">`;
       }
 
-      // Default: Input de texto normal
       let valorInput = val;
-      if (columna === "radio_tolerancia_mts" && !valorInput) valorInput = "150";
+      if (col === "radio_tolerancia_mts" && !valorInput) valorInput = "150";
       return `<input type="text" id="f_${columna}" value="${valorInput}">`;
     }
 
     // --- FORMULARIO CRUD UNIVERSAL ---
     function modalCrud(idEdit = null) {
       editandoId = idEdit;
-      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
+      const nombreModulo = moduloActual === "Privilegios" ? "Privilegio" : moduloActual;
+      $("modalTit").innerText = idEdit ? `Editar ${nombreModulo}` : `Nuevo ${nombreModulo}`;
       
       const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
       $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
@@ -846,10 +879,11 @@
       const form = $("modalForm");
       form.innerHTML = "";
       
-      const clave = moduloActual.toLowerCase();
+      const clave = moduloActual === "Privilegios" ? "membresias" : moduloActual.toLowerCase();
       const datos = appData[clave] || appData[clave + 's'] || [];
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
+      const keyId = (moduloActual === "Usuarios") ? "usuario_id" : 
+                    (moduloActual === "Privilegios" || moduloActual === "Membresias") ? "membresia_id" : 
+                    (moduloActual === "Asistencia") ? "asistencia_id" :
                     moduloActual.slice(0,-1).toLowerCase() + "_id";
       
       let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
@@ -865,7 +899,7 @@
       colsForm.forEach(c => {
         form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
         let val = reg[c] !== undefined ? reg[c] : "";
-        form.innerHTML += generarCampoFormulario(c, val, moduloActual);
+        form.innerHTML += generarCampoFormulario(c, val, moduloActual, !!idEdit, reg);
       });
 
       $("modal").classList.remove("oculto");
@@ -900,17 +934,17 @@
 
     async function guardarRegistro() {
       let datosSend = {};
-      // Captura tanto inputs como selects y textareas
       const controles = $("modalForm").querySelectorAll("input, select, textarea");
       controles.forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
 
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
+      const keyId = (tabla === "Usuarios") ? "usuario_id" : 
+                    (tabla === "Membresias") ? "membresia_id" : 
+                    tabla.slice(0,-1).toLowerCase() + "_id";
 
       try {
         await llamarAPI("guardarRegistro", {
-          tablaNombre: moduloActual,
+          tablaNombre: tabla,
           datos: datosSend,
           idColumna: keyId,
           idValor: editandoId
@@ -924,13 +958,14 @@
 
     async function borrarRegistro() {
       if(!confirm("¿Deseas dar de baja este registro?")) return;
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
+      const keyId = (tabla === "Usuarios") ? "usuario_id" : 
+                    (tabla === "Membresias") ? "membresia_id" : 
+                    tabla.slice(0,-1).toLowerCase() + "_id";
 
       try {
         await llamarAPI("eliminarRegistro", {
-          tablaNombre: moduloActual,
+          tablaNombre: tabla,
           idColumna: keyId,
           idValor: editandoId
         });
@@ -948,31 +983,34 @@
       $("msgAltaUsuario").innerText = "";
       $("cajaNombreNuevo").style.display = "block";
 
-      // Poblar datalist con usuarios existentes
       const dl = $("listaCorreosExistentes");
       dl.replaceChildren();
       (appData.usuarios || []).forEach(u => {
         dl.innerHTML += `<option value="${u.email}">${u.nombre}</option>`;
       });
 
-      // Poblar lista de condominios
       const selCondo = $("nuevoCondominio");
       selCondo.replaceChildren();
       (appData.condominios || []).forEach(c => {
         selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
       });
 
-      // Poblar lista dinámica de roles desde el backend
       const selRol = $("nuevoRol");
       selRol.replaceChildren();
-      (appData.listas.roles || []).forEach(r => {
+      const rolesCatalogo = (appData.listas && appData.listas.roles) ? appData.listas.roles : [
+        { id: "superadmin", nombre: "Super Administrador / Soporte Global" },
+        { id: "administracion", nombre: "Administración / Mesa Directiva" },
+        { id: "tecnico", nombre: "Personal Operativo / Técnico" },
+        { id: "residente", nombre: "Residente / Condómino" }
+      ];
+      rolesCatalogo.forEach(r => {
         selRol.innerHTML += `<option value="${r.id}">${r.nombre}</option>`;
       });
 
-      // Poblar lista de especialidades
       const selEsp = $("nuevaEspecialidad");
       selEsp.replaceChildren();
-      (appData.listas.especialidades || []).forEach(e => {
+      const especialidades = (appData.listas && appData.listas.especialidades) ? appData.listas.especialidades : ["Limpieza", "Seguridad / Guardia", "Mantenimiento General", "Jardinería", "Conserjería"];
+      especialidades.forEach(e => {
         selEsp.innerHTML += `<option value="${e}">${e}</option>`;
       });
 
