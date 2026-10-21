@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ERP Condominios</title>
+  <style>
+    :root { 
+      --bg: #f8fafc; --nav: #0f172a; --nav-hover: #1e293b; 
+      --text: #334155; --primary: #2563eb; --card: #ffffff; 
+      --border: #e2e8f0; --danger: #ef4444; --success: #16a34a; --warning: #d97706;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+    
+    .oculto { display: none !important; }
+
+    #loginView { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: #e2e8f0; padding: 16px; }
+    .login-box { background: var(--card); padding: 28px; border-radius: 12px; width: 100%; max-width: 380px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    
+    #appView { display: flex; width: 100%; height: 100%; position: relative; }
+    
+    .sidebar { width: 250px; background: var(--nav); color: white; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 50; }
+    .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
+    .sidebar-overlay.active { display: block; }
+    
+    .brand { padding: 18px 20px; font-size: 15px; font-weight: bold; border-bottom: 1px solid var(--nav-hover); letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+    .nav-group { padding: 14px 20px 4px; font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+    .nav-item { padding: 12px 20px; cursor: pointer; color: #cbd5e1; display: flex; align-items: center; border-left: 3px solid transparent; font-size: 13px; }
+    .nav-item:hover, .nav-item.activo { background: var(--nav-hover); color: white; border-left-color: var(--primary); }
+    
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .topbar { background: var(--card); padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    
+    .btn-menu-toggle { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); padding: 4px; }
+    .user-pill { font-size: 12px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    
+    .content { flex: 1; padding: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    
+    .btn { padding: 9px 14px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
+    .btn-danger { background: var(--danger); }
+    .btn-success { background: var(--success); }
+    .btn-warning { background: var(--warning); }
+    .btn-sm { padding: 6px 10px; font-size: 12px; min-height: 30px; }
+    input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-size: 14px; background: white; }
+
+    .table-container { width: 100%; overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; font-size: 13px; }
+    th { background: #f8fafc; font-weight: 600; color: #475569; }
+
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .badge-Valido { background: #dcfce7; color: #15803d; }
+    .badge-FueradeRango { background: #fee2e2; color: #b91c1c; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; padding: 12px; }
+    .modal { background: var(--card); width: 100%; max-width: 480px; border-radius: 12px; padding: 20px; max-height: 92vh; overflow-y: auto; }
+    .modal-header { font-size: 16px; font-weight: bold; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+    .shift-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .shift-btn { padding: 12px 8px; border: 2px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 12px; font-weight: bold; text-align: center; color: var(--text); }
+    .shift-btn:hover { border-color: var(--primary); }
+    .shift-btn.active { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+    
+    .camera-trigger-box { border: 2px dashed #94a3b8; border-radius: 8px; padding: 20px 14px; text-align: center; background: #f8fafc; cursor: pointer; margin-bottom: 12px; }
+    .camera-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; display: none; margin-bottom: 12px; }
+    .geo-pill { font-size: 12px; padding: 10px; border-radius: 6px; background: #f1f5f9; border: 1px solid var(--border); margin-bottom: 12px; line-height: 1.4; }
+
+    @media (max-width: 768px) {
+      .btn-menu-toggle { display: block; }
+      .sidebar { position: fixed; top: 0; left: 0; height: 100%; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .topbar { padding: 10px 12px; }
+      #moduloTitulo { font-size: 16px; }
+      .user-pill { display: none; }
+      .topbar-right .btn { padding: 6px 10px; font-size: 12px; }
+      .content { padding: 12px; }
+      .shift-buttons { grid-template-columns: 1fr; }
+      .modal { padding: 16px; max-height: 95vh; }
+      .modal-actions { flex-direction: column-reverse; }
+      .modal-actions .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loginView">
+    <div class="login-box">
+      <h2 style="margin-bottom:6px; font-size:20px; text-align:center;">ERP Condominios</h2>
+      <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Ingresa tu correo para recibir un código de acceso.</p>
+      
+      <div id="p1">
+        <label style="font-size:12px; font-weight:bold;">Correo registrado</label>
+        <input type="email" id="email" placeholder="usuario@ejemplo.com">
+        <button class="btn" style="width:100%" id="btnSolicitarCod" onclick="pedirCod()">Enviar Código</button>
+      </div>
+
+      <div id="p2" class="oculto">
+        <label style="font-size:12px; font-weight:bold;">Código de 6 dígitos</label>
+        <input type="text" id="codigo" maxlength="6" inputmode="numeric" placeholder="123456">
+        <button class="btn" style="width:100%" id="btnVerificarCod" onclick="login()">Ingresar</button>
+      </div>
+      <p id="msgLog" style="margin-top:12px; font-size:12px; text-align:center;"></p>
+    </div>
+  </div>
+
+  <div id="appView" class="oculto">
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <nav class="sidebar" id="sidebar">
+      <div class="brand">
+        <span>🏢 ERP GESTIÓN</span>
+        <button style="background:none; border:none; color:white; font-size:18px; cursor:pointer;" onclick="toggleSidebar()">✕</button>
+      </div>
+      
+      <div id="menuAdmin" class="oculto">
+        <div class="nav-group">Inmuebles</div>
+        <div class="nav-item activo" onclick="abrirModulo('Condominios', this)">Condominios</div>
+        <div class="nav-item" onclick="abrirModulo('Departamentos', this)">Departamentos</div>
+        
+        <div class="nav-group">Personal y Accesos</div>
+        <div class="nav-item" onclick="abrirModulo('Usuarios', this)">Directorio Personal / Condóminos</div>
+        <div class="nav-item" onclick="abrirModulo('Membresias', this)">Asignación de Privilegios</div>
+        <div class="nav-item" onclick="abrirModulo('Asistencia', this)">⏱️ Bitácora de Asistencia</div>
+      </div>
+
+      <div id="menuOperativo" class="oculto">
+        <div class="nav-group">Operación Diaria</div>
+        <div class="nav-item" onclick="abrirModalChecador()">⏱️ Checar Turno / Comida</div>
+        <div class="nav-item" onclick="abrirModulo('Asistencia', this)">Mis Checadas</div>
+        <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias y Reportes</div>
+      </div>
+
+      <div id="menuResidente" class="oculto">
+        <div class="nav-group">Mi Portal</div>
+        <div class="nav-item activo" onclick="abrirModulo('Incidencias', this)">Mis Reportes de Falla</div>
+      </div>
+    </nav>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-menu-toggle" onclick="toggleSidebar()">☰</button>
+          <h3 id="moduloTitulo">Condominios</h3>
+        </div>
+        
+        <div class="topbar-right">
+          <div class="user-pill" id="userBadge">Cargando...</div>
+          <button class="btn btn-warning" id="btnRelojTop" onclick="abrirModalChecador()">⏱️ Checar</button>
+          <button class="btn btn-success" id="btnAltaUsuario" onclick="abrirModalAltaUsuario()">+ Privilegio</button>
+          <button class="btn" id="btnNuevo" onclick="modalCrud()">+ Nuevo</button>
+          <button class="btn btn-danger btn-sm" onclick="salir()">Salir</button>
+        </div>
+      </header>
+      
+      <div class="content">
+        <div class="table-container">
+          <table id="tablaDatos">
+            <thead id="tablaHead"></thead>
+            <tbody id="tablaBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CHECADOR (MISMA PANTALLA) -->
+  <div id="modalChecador" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span>⏱️ Registro de Asistencia</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalChecador').classList.add('oculto')">&times;</span>
+      </div>
+
+      <label style="font-size:11px; font-weight:bold;">1. Evento de Turno:</label>
+      <div class="shift-buttons">
+        <button type="button" class="shift-btn active" id="btnShift_Entrada" onclick="seleccionarTurno('Entrada')">🟢 Entrada</button>
+        <button type="button" class="shift-btn" id="btnShift_Salida_Comer" onclick="seleccionarTurno('Salida a Comer')">🟡 Salida Comer</button>
+        <button type="button" class="shift-btn" id="btnShift_Regreso_Comer" onclick="seleccionarTurno('Regreso de Comer')">🔵 Regreso Comer</button>
+        <button type="button" class="shift-btn" id="btnShift_Salida" onclick="seleccionarTurno('Salida')">🔴 Salida</button>
+      </div>
+
+      <label style="font-size:11px; font-weight:bold;">2. Condominio:</label>
+      <select id="checadorCondominio"></select>
+
+      <label style="font-size:11px; font-weight:bold;">3. Foto en Vivo (Sin Galería):</label>
+      <input type="file" id="inputFotoDirecta" accept="image/*" capture="user" class="oculto" onchange="capturarFotoDesdeSensor(this)">
+      
+      <div class="camera-trigger-box" onclick="$('inputFotoDirecta').click()">
+        <span style="font-size:28px;">📷</span><br>
+        <strong style="color:var(--primary); font-size:13px;" id="lblBotonFoto">Presiona aquí para abrir la cámara</strong>
+        <p style="font-size:11px; color:#64748b; margin-top:4px;">Dispara directamente desde tu celular.</p>
+      </div>
+
+      <img id="imgPreview" class="camera-preview" alt="Foto tomada">
+
+      <div class="geo-pill" id="geoEstado">
+        📍 GPS: Solicitando ubicación al satélite...
+      </div>
+
+      <p id="msgChecador" style="font-size:12px; margin-top:8px;"></p>
+
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalChecador').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-success" id="btnGuardarChecada" onclick="enviarRegistroAsistencia()" disabled>Confirmar Marcaje</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ASIGNACIÓN DE PRIVILEGIOS -->
+  <div id="modalAltaUsuario" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Asignar Privilegio o Departamento</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalAltaUsuario').classList.add('oculto')">&times;</span>
+      </div>
+      
+      <label style="font-size:11px; font-weight:bold;">Correo del Usuario:</label>
+      <input type="email" id="nuevoEmail" placeholder="usuario@ejemplo.com" onchange="verificarSiExisteUsuario(this.value)">
+
+      <div id="cajaNombreNuevo">
+        <label style="font-size:11px; font-weight:bold;">Nombre Completo (solo si es nuevo):</label>
+        <input type="text" id="nuevoNombre" placeholder="Ej. Roberto Gómez">
+      </div>
+
+      <label style="font-size:11px; font-weight:bold;">Condominio:</label>
+      <select id="nuevoCondominio"></select>
+
+      <label style="font-size:11px; font-weight:bold;">Rol / Privilegio:</label>
+      <select id="nuevoRol" onchange="toggleRolCampos(this.value)">
+        <option value="residente">Residente / Condómino (con depto)</option>
+        <option value="tecnico">Personal Operativo / Técnico (con checador)</option>
+        <option value="administracion">Administración / Mesa Directiva</option>
+      </select>
+
+      <div id="cajaEspecialidad" class="oculto">
+        <label style="font-size:11px; font-weight:bold;">Puesto Operativo:</label>
+        <select id="nuevaEspecialidad">
+          <option value="Limpieza">Limpieza e Intendencia</option>
+          <option value="Seguridad / Guardia">Seguridad / Guardia de Acceso</option>
+          <option value="Mantenimiento General">Mantenimiento General</option>
+          <option value="Jardinería">Jardinería</option>
+          <option value="Conserjería">Conserjería</option>
+        </select>
+      </div>
+
+      <div id="cajaDeptoAsignado">
+        <label style="font-size:11px; font-weight:bold;">Departamento Asignado:</label>
+        <select id="nuevoDepto"></select>
+      </div>
+
+      <p id="msgAltaUsuario" style="font-size:12px; margin-top:8px;"></p>
+
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalAltaUsuario').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-success" id="btnCrearUsuarioCompleto" onclick="ejecutarAltaUsuario()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CRUD -->
+  <div id="modal" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="modalTit">Crear/Editar</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modal').classList.add('oculto')">&times;</span>
+      </div>
+      <div id="modalForm"></div>
+      
+      <div id="asistenteGpsCondominio" class="oculto" style="margin-top:10px; padding:12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
+        <span style="font-size:11px; font-weight:bold; color:#1e40af;">📍 Detección Automática de Coordenadas:</span>
+        <p style="font-size:11px; color:#1e3a8a; margin:4px 0 8px;">Si estás físicamente en el condominio, toma tu ubicación exacta:</p>
+        <button type="button" class="btn btn-sm btn-warning" onclick="autocompletarCoordenadasCondo()">📍 Usar mi ubicación actual</button>
+        <span id="msgGpsAuto" style="font-size:11px; margin-left:8px;"></span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-danger oculto" id="btnBorrar" onclick="borrarRegistro()">Desactivar</button>
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modal').classList.add('oculto')">Cancelar</button>
+        <button class="btn" id="btnGuardar" onclick="guardarRegistro()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // =========================================================================
+    // PEGA AQUÍ TU URL /exec DE GOOGLE APPS SCRIPT
+    // =========================================================================
+    const URL_BACKEND_APPSCRIPT = "https://script.google.com/macros/s/AKfycbxcf_GVD7yY3mvufAFsbQJU6BsRB5qd4bM2og4SSi7BI9MqGGpRocxSRCWWcjISsNyhcw/exec";
+
+    // Función universal para comunicarse con Apps Script sin CORS preflight
+    async function llamarAPI(accion, payload = {}) {
+      const token = sessionStorage.getItem("tok") || "";
+      const respuesta = await fetch(URL_BACKEND_APPSCRIPT, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ accion: accion, payload: payload, token: token })
+      });
+      const res = await respuesta.json();
+      if (!res.exito) throw new Error(res.mensaje);
+      return res.datos;
+    }
+
+    let appData = null;
+    let moduloActual = 'Incidencias';
+    let editandoId = null;
+
+    let fotoBase64Capturada = null;
+    let ubicacionGPS = { lat: null, lon: null, precision: null };
+    let eventoTurnoSeleccionado = 'Entrada';
+
+    function toggleSidebar() {
+      $("sidebar").classList.toggle("open");
+      $("sidebarOverlay").classList.toggle("active");
+    }
+
+    // --- ACCESO ---
+    async function pedirCod() {
+      const e = $("email").value.trim();
+      if(!e) return $("msgLog").innerText = "Ingresa tu correo registrado.";
+      $("msgLog").innerText = "Verificando cuenta...";
+      $("btnSolicitarCod").disabled = true;
+
+      try {
+        const r = await llamarAPI("solicitarCodigoAcceso", { email: e });
+        $("btnSolicitarCod").disabled = false;
+        $("msgLog").innerText = r.mensaje;
+        if (r.correcto) {
+          $("p1").classList.add("oculto"); 
+          $("p2").classList.remove("oculto");
+        }
+      } catch (err) {
+        $("btnSolicitarCod").disabled = false;
+        $("msgLog").innerText = "Error: " + err.message;
+      }
+    }
+
+    async function login() {
+      $("msgLog").innerText = "Validando código...";
+      $("btnVerificarCod").disabled = true;
+
+      try {
+        const r = await llamarAPI("verificarCodigoAcceso", { email: $("email").value, codigo: $("codigo").value });
+        $("btnVerificarCod").disabled = false;
+        if (r.correcto) {
+          sessionStorage.setItem("tok", r.token);
+          iniciarApp();
+        } else {
+          $("msgLog").innerText = r.mensaje;
+        }
+      } catch (err) {
+        $("btnVerificarCod").disabled = false;
+        $("msgLog").innerText = "Error: " + err.message;
+      }
+    }
+
+    async function salir() {
+      try { await llamarAPI("cerrarSesion"); } catch(e) {}
+      sessionStorage.removeItem("tok"); 
+      location.reload();
+    }
+
+    // --- CARGA GENERAL ---
+    async function iniciarApp() {
+      const t = sessionStorage.getItem("tok");
+      if(!t) return;
+      $("loginView").classList.add("oculto");
+      $("appView").classList.remove("oculto");
+      $("tablaBody").innerHTML = "<tr><td colspan='10'>Cargando registros...</td></tr>";
+
+      try {
+        appData = await llamarAPI("cargarDatosDashboard");
+        aplicarPrivilegiosUI(appData.rolActivo, appData.usuario);
+        pintarTabla();
+      } catch (err) {
+        alert("Error de sesión: " + err.message);
+        salir();
+      }
+    }
+
+    function aplicarPrivilegiosUI(rol, user) {
+      const subtitulo = user.especialidad ? ` - ${user.especialidad}` : '';
+      $("userBadge").innerHTML = `<strong>${user.nombre}</strong> (${rol.toUpperCase()}${subtitulo})`;
+
+      if (rol === "administracion") {
+        $("menuAdmin").classList.remove("oculto");
+        $("menuOperativo").classList.add("oculto");
+        $("menuResidente").classList.add("oculto");
+        $("btnAltaUsuario").classList.remove("oculto");
+        $("btnRelojTop").classList.remove("oculto");
+        $("btnNuevo").classList.remove("oculto");
+        if(moduloActual !== "Asistencia") moduloActual = "Condominios";
+      } else if (rol === "tecnico") {
+        $("menuAdmin").classList.add("oculto");
+        $("menuOperativo").classList.remove("oculto");
+        $("menuResidente").classList.add("oculto");
+        $("btnAltaUsuario").classList.add("oculto");
+        $("btnRelojTop").classList.remove("oculto");
+        $("btnNuevo").classList.add("oculto");
+        moduloActual = "Asistencia";
+      } else {
+        $("menuAdmin").classList.add("oculto");
+        $("menuOperativo").classList.add("oculto");
+        $("menuResidente").classList.remove("oculto");
+        $("btnAltaUsuario").classList.add("oculto");
+        $("btnRelojTop").classList.add("oculto");
+        $("btnNuevo").classList.remove("oculto");
+        moduloActual = "Incidencias";
+      }
+      $("moduloTitulo").innerText = moduloActual;
+    }
+
+    function abrirModulo(mod, el) {
+      moduloActual = mod;
+      $("moduloTitulo").innerText = mod;
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("activo"));
+      if(el) el.classList.add("activo");
+      if(window.innerWidth <= 768) toggleSidebar();
+      pintarTabla();
+    }
+
+    const colsVisibles = {
+      Condominios: ["condominio_id", "nombre", "latitud", "longitud", "radio_tolerancia_mts", "estado"],
+      Departamentos: ["condominio_id", "departamento_id", "torre", "numero_departamento", "estado"],
+      Usuarios: ["usuario_id", "nombre", "email", "especialidad", "estado"],
+      Membresias: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
+      Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "prioridad", "estado"],
+      Asistencia: ["asistencia_id", "usuario_id", "condominio_id", "especialidad", "tipo_registro", "fecha_hora", "distancia_mts", "estatus_geocerca", "foto_url"]
+    };
+
+    function obtenerNombreUsuario(uId) {
+      if(!appData || !appData.usuarios) return uId;
+      const u = appData.usuarios.find(x => x.usuario_id === uId);
+      return u ? `${u.nombre}` : uId;
+    }
+
+    function obtenerNombreCondo(cId) {
+      if(!appData || !appData.condominios) return cId;
+      const c = appData.condominios.find(x => x.condominio_id === cId);
+      return c ? c.nombre : cId;
+    }
+
+    function pintarTabla() {
+      if(!appData) return;
+      
+      const clave = moduloActual.toLowerCase();
+      const datos = appData[clave] || appData[clave + 's'] || [];
+      const cols = colsVisibles[moduloActual] || [];
+      
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual === "Asistencia" ? "asistencia_id" :
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+
+      let th = cols.map(c => `<th>${c.toUpperCase()}</th>`).join("") + "<th>ACCIONES</th>";
+      $("tablaHead").innerHTML = `<tr>${th}</tr>`;
+
+      let tb = datos.map(d => {
+        let tds = cols.map(c => {
+          if (c === "usuario_id") return `<td><strong>${obtenerNombreUsuario(d[c])}</strong></td>`;
+          if (c === "condominio_id") return `<td>${obtenerNombreCondo(d[c])}</td>`;
+          if (c === "estatus_geocerca") {
+            const cls = (d[c]||"").includes("Válido") ? "badge-Valido" : "badge-FueradeRango";
+            return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
+          }
+          if (c === "tipo_registro") return `<td><strong>${d[c]}</strong></td>`;
+          if (c === "foto_url") {
+            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm" style="text-decoration:none; padding:4px 8px; font-size:11px;">📷 Ver Foto</a>` : '<small style="color:#94a3b8">Sin foto</small>'}</td>`;
+          }
+          if (c === "distancia_mts") return `<td>${d[c]} m</td>`;
+          return `<td>${d[c]||""}</td>`;
+        }).join("");
+
+        let btnAccion = moduloActual === "Asistencia" 
+          ? `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Auditado</span>`
+          : `<button class="btn btn-sm" onclick="modalCrud('${d[keyId]}')">✎ Editar</button>`;
+
+        return `<tr>${tds}<td>${btnAccion}</td></tr>`;
+      }).join("");
+
+      $("tablaBody").innerHTML = tb || "<tr><td colspan='10'>No hay registros disponibles en este módulo.</td></tr>";
+    }
+
+    // --- RELOJ CHECADOR ---
+    function abrirModalChecador() {
+      fotoBase64Capturada = null;
+      ubicacionGPS = { lat: null, lon: null, precision: null };
+      $("msgChecador").innerText = "";
+      $("btnGuardarChecada").disabled = true;
+      $("imgPreview").style.display = "none";
+      $("lblBotonFoto").innerText = "Presiona aquí para abrir la cámara";
+      seleccionarTurno('Entrada');
+
+      const selCondo = $("checadorCondominio");
+      selCondo.replaceChildren();
+      
+      if (!appData.condominios || !appData.condominios.length) {
+        selCondo.innerHTML = `<option value="">No hay condominios registrados</option>`;
+      } else {
+        appData.condominios.forEach(c => {
+          selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
+        });
+      }
+
+      $("modalChecador").classList.remove("oculto");
+      obtenerGPS();
+    }
+
+    function seleccionarTurno(tipo) {
+      eventoTurnoSeleccionado = tipo;
+      document.querySelectorAll(".shift-btn").forEach(b => b.classList.remove("active"));
+      if(tipo === "Entrada") $("btnShift_Entrada").classList.add("active");
+      if(tipo === "Salida a Comer") $("btnShift_Salida_Comer").classList.add("active");
+      if(tipo === "Regreso de Comer") $("btnShift_Regreso_Comer").classList.add("active");
+      if(tipo === "Salida") $("btnShift_Salida").classList.add("active");
+    }
+
+    function capturarFotoDesdeSensor(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          fotoBase64Capturada = canvas.toDataURL("image/jpeg", 0.72);
+          
+          const preview = $("imgPreview");
+          preview.src = fotoBase64Capturada;
+          preview.style.display = "block";
+          $("lblBotonFoto").innerText = "✓ Foto capturada (Toca para cambiar)";
+
+          validarListuraParaChecar();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function obtenerGPS() {
+      const geoBox = $("geoEstado");
+      geoBox.innerText = "📍 GPS: Solicitando ubicación al satélite...";
+
+      if (!navigator.geolocation) {
+        geoBox.innerText = "❌ Dispositivo sin sensor GPS.";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          ubicacionGPS.lat = pos.coords.latitude;
+          ubicacionGPS.lon = pos.coords.longitude;
+          ubicacionGPS.precision = Math.round(pos.coords.accuracy);
+
+          geoBox.innerHTML = `📍 <strong>Ubicación fijada:</strong> Lat: ${ubicacionGPS.lat.toFixed(5)}, Lon: ${ubicacionGPS.lon.toFixed(5)} (±${ubicacionGPS.precision}m)`;
+          validarListuraParaChecar();
+        },
+        err => {
+          geoBox.innerHTML = `<span style="color:red;">❌ Activa el sensor de ubicación/GPS de tu teléfono para registrar asistencia.</span>`;
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+
+    function validarListuraParaChecar() {
+      if (fotoBase64Capturada && ubicacionGPS.lat !== null && $("checadorCondominio").value) {
+        $("btnGuardarChecada").disabled = false;
+      }
+    }
+
+    async function enviarRegistroAsistencia() {
+      const payload = {
+        condominio_id: $("checadorCondominio").value,
+        tipo_registro: eventoTurnoSeleccionado,
+        latitud: ubicacionGPS.lat,
+        longitud: ubicacionGPS.lon,
+        base64: fotoBase64Capturada
+      };
+
+      $("btnGuardarChecada").disabled = true;
+      $("btnGuardarChecada").innerText = "Guardando...";
+      $("msgChecador").innerText = "Calculando distancia contra geocerca...";
+
+      try {
+        const r = await llamarAPI("registrarChecadaAsistencia", payload);
+        $("btnGuardarChecada").innerText = "Confirmar Marcaje";
+        if (r.correcto) {
+          $("msgChecador").innerText = r.mensaje;
+          $("msgChecador").style.color = "green";
+          setTimeout(() => {
+            $("modalChecador").classList.add("oculto");
+            moduloActual = "Asistencia";
+            iniciarApp();
+          }, 1800);
+        } else {
+          $("btnGuardarChecada").disabled = false;
+          $("msgChecador").innerText = r.mensaje;
+          $("msgChecador").style.color = "red";
+        }
+      } catch (err) {
+        $("btnGuardarChecada").disabled = false;
+        $("btnGuardarChecada").innerText = "Confirmar Marcaje";
+        $("msgChecador").innerText = "Error: " + err.message;
+      }
+    }
+
+    // --- FORMULARIO CRUD ---
+    function modalCrud(idEdit = null) {
+      editandoId = idEdit;
+      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
+      $("btnBorrar").classList.toggle("oculto", !idEdit || appData.rolActivo !== "administracion");
+      
+      const form = $("modalForm");
+      form.innerHTML = "";
+      
+      const clave = moduloActual.toLowerCase();
+      const datos = appData[clave] || appData[clave + 's'] || [];
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+      
+      let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
+      let colsForm = colsVisibles[moduloActual] || [];
+
+      if (moduloActual === "Condominios") {
+        $("asistenteGpsCondominio").classList.remove("oculto");
+        $("msgGpsAuto").innerText = "";
+      } else {
+        $("asistenteGpsCondominio").classList.add("oculto");
+      }
+
+      colsForm.forEach(c => {
+        form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
+        let val = reg[c] !== undefined ? reg[c] : "";
+        if (c === "radio_tolerancia_mts" && !val) val = "150";
+        form.innerHTML += `<input type="text" id="f_${c}" value="${val}">`;
+      });
+
+      $("modal").classList.remove("oculto");
+    }
+
+    function autocompletarCoordenadasCondo() {
+      const msg = $("msgGpsAuto");
+      msg.innerText = "Consultando GPS...";
+      msg.style.color = "blue";
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const latInput = $("f_latitud");
+          const lonInput = $("f_longitud");
+          const radioInput = $("f_radio_tolerancia_mts");
+
+          if (latInput && lonInput) {
+            latInput.value = pos.coords.latitude.toFixed(6);
+            lonInput.value = pos.coords.longitude.toFixed(6);
+            if(radioInput && !radioInput.value) radioInput.value = "150";
+            msg.innerText = "✓ Coordenadas fijadas.";
+            msg.style.color = "green";
+          }
+        },
+        err => {
+          msg.innerText = "Error GPS: " + err.message;
+          msg.style.color = "red";
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    async function guardarRegistro() {
+      let datosSend = {};
+      const inputs = $("modalForm").querySelectorAll("input");
+      inputs.forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
+
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+
+      try {
+        await llamarAPI("guardarRegistro", {
+          tablaNombre: moduloActual,
+          datos: datosSend,
+          idColumna: keyId,
+          idValor: editandoId
+        });
+        $("modal").classList.add("oculto");
+        iniciarApp();
+      } catch (err) {
+        alert("Error al guardar: " + err.message);
+      }
+    }
+
+    async function borrarRegistro() {
+      if(!confirm("¿Deseas dar de baja este registro?")) return;
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+
+      try {
+        await llamarAPI("eliminarRegistro", {
+          tablaNombre: moduloActual,
+          idColumna: keyId,
+          idValor: editandoId
+        });
+        $("modal").classList.add("oculto");
+        iniciarApp();
+      } catch (err) {
+        alert("Error al eliminar: " + err.message);
+      }
+    }
+
+    // --- ALTA USUARIOS ---
+    function abrirModalAltaUsuario() {
+      $("nuevoEmail").value = "";
+      $("nuevoNombre").value = "";
+      $("msgAltaUsuario").innerText = "";
+
+      const selCondo = $("nuevoCondominio");
+      selCondo.replaceChildren();
+      appData.condominios.forEach(c => {
+        selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
+      });
+
+      actualizarDeptosAlta();
+      selCondo.onchange = actualizarDeptosAlta;
+      $("modalAltaUsuario").classList.remove("oculto");
+    }
+
+    function toggleRolCampos(rol) {
+      if (rol === "tecnico") {
+        $("cajaEspecialidad").classList.remove("oculto");
+        $("cajaDeptoAsignado").classList.add("oculto");
+      } else if (rol === "residente") {
+        $("cajaEspecialidad").classList.add("oculto");
+        $("cajaDeptoAsignado").classList.remove("oculto");
+      } else {
+        $("cajaEspecialidad").classList.add("oculto");
+        $("cajaDeptoAsignado").classList.add("oculto");
+      }
+    }
+
+    function actualizarDeptosAlta() {
+      const condoId = $("nuevoCondominio").value;
+      const selDepto = $("nuevoDepto");
+      selDepto.replaceChildren();
+      
+      const deptos = appData.departamentos.filter(d => d.condominio_id === condoId && d.estado !== "Inactivo");
+      deptos.forEach(d => {
+        selDepto.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (Torre ${d.torre} - ${d.numero_departamento})</option>`;
+      });
+      if (!deptos.length) selDepto.innerHTML = `<option value="">Sin departamentos</option>`;
+    }
+
+    async function ejecutarAltaUsuario() {
+      const email = $("nuevoEmail").value.trim();
+      const nombre = $("nuevoNombre").value.trim();
+      const condominio_id = $("nuevoCondominio").value;
+      const rol = $("nuevoRol").value;
+      const especialidad = rol === "tecnico" ? $("nuevaEspecialidad").value : "";
+      const departamento_id = rol === "residente" ? $("nuevoDepto").value : "";
+
+      if (!email || !condominio_id || !rol) {
+        return $("msgAltaUsuario").innerText = "Completa los campos requeridos.";
+      }
+
+      $("btnCrearUsuarioCompleto").disabled = true;
+      $("msgAltaUsuario").innerText = "Guardando...";
+
+      const payload = {
+        nombre: nombre,
+        email: email,
+        condominio_id: condominio_id,
+        rol: rol,
+        especialidad: especialidad,
+        departamento_id: departamento_id
+      };
+
+      try {
+        const r = await llamarAPI("altaUsuarioConAcceso", payload);
+        $("btnCrearUsuarioCompleto").disabled = false;
+        if (r.correcto) {
+          $("msgAltaUsuario").innerText = r.mensaje;
+          setTimeout(() => {
+            $("modalAltaUsuario").classList.add("oculto");
+            iniciarApp();
+          }, 1800);
+        }
+      } catch (err) {
+        $("btnCrearUsuarioCompleto").disabled = false;
+        $("msgAltaUsuario").innerText = err.message;
+      }
+    }
+
+    if(sessionStorage.getItem("tok")) iniciarApp();
+  </script>
+</body>
+</html>
