@@ -105,7 +105,7 @@
 </head>
 <body>
 
-  <!-- BANNER MODO SOPORTE / EMULACIÓN -->
+  <!-- BANNER MODO SOPORTE -->
   <div id="bannerSoporte" class="oculto">
     <div style="display:flex; align-items:center; gap:8px;">
       <span>👁️ MODO SOPORTE:</span>
@@ -268,7 +268,8 @@
       </div>
       
       <label style="font-size:11px; font-weight:bold;">Correo del Usuario:</label>
-      <input type="email" id="nuevoEmail" placeholder="usuario@ejemplo.com" onchange="verificarSiExisteUsuario(this.value)">
+      <input type="email" id="nuevoEmail" list="listaCorreosExistentes" placeholder="usuario@ejemplo.com" oninput="verificarSiExisteUsuario(this.value)">
+      <datalist id="listaCorreosExistentes"></datalist>
 
       <div id="cajaNombreNuevo">
         <label style="font-size:11px; font-weight:bold;">Nombre Completo (solo si es nuevo):</label>
@@ -279,22 +280,11 @@
       <select id="nuevoCondominio"></select>
 
       <label style="font-size:11px; font-weight:bold;">Rol / Privilegio:</label>
-      <select id="nuevoRol" onchange="toggleRolCampos(this.value)">
-        <option value="residente">Residente / Condómino (con depto)</option>
-        <option value="tecnico">Personal Operativo / Técnico (con checador)</option>
-        <option value="administracion">Administración / Mesa Directiva</option>
-        <option value="superadmin">Super Administrador / Soporte Global</option>
-      </select>
+      <select id="nuevoRol" onchange="toggleRolCampos(this.value)"></select>
 
       <div id="cajaEspecialidad" class="oculto">
         <label style="font-size:11px; font-weight:bold;">Puesto Operativo:</label>
-        <select id="nuevaEspecialidad">
-          <option value="Limpieza">Limpieza e Intendencia</option>
-          <option value="Seguridad / Guardia">Seguridad / Guardia de Acceso</option>
-          <option value="Mantenimiento General">Mantenimiento General</option>
-          <option value="Jardinería">Jardinería</option>
-          <option value="Conserjería">Conserjería</option>
-        </select>
+        <select id="nuevaEspecialidad"></select>
       </div>
 
       <div id="cajaDeptoAsignado">
@@ -311,7 +301,7 @@
     </div>
   </div>
 
-  <!-- MODAL CRUD -->
+  <!-- MODAL CRUD UNIVERSAL CON CAMPOS DESPLEGABLES -->
   <div id="modal" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
@@ -572,10 +562,10 @@
       });
 
       if (appData.modoEmulacion) {
-        banner.style.background = "#b45309"; // Tono ámbar de alerta al suplantar
+        banner.style.background = "#b45309";
         $("txtInfoEmulacion").innerText = `Viendo como: ${appData.usuario.nombre} [${appData.rolActivo.toUpperCase()}]`;
       } else {
-        banner.style.background = "#7e22ce"; // Púrpura de soporte
+        banner.style.background = "#7e22ce";
         $("txtInfoEmulacion").innerText = `Sesión Global de Soporte (${appData.usuarioReal.nombre})`;
       }
     }
@@ -652,6 +642,12 @@
       return c ? c.nombre : cId;
     }
 
+    function obtenerNombreRol(rolId) {
+      if (!appData || !appData.listas || !appData.listas.roles) return rolId;
+      const r = appData.listas.roles.find(x => x.id === String(rolId).toLowerCase());
+      return r ? r.nombre : rolId;
+    }
+
     // --- ORDENAMIENTO EN TABLAS ---
     function ordenarPor(col) {
       if (columnaOrdenada === col) {
@@ -686,6 +682,9 @@
           } else if (columnaOrdenada === "condominio_id") {
             valA = obtenerNombreCondo(valA);
             valB = obtenerNombreCondo(valB);
+          } else if (columnaOrdenada === "rol") {
+            valA = obtenerNombreRol(valA);
+            valB = obtenerNombreRol(valB);
           }
 
           const numA = parseFloat(String(valA).replace(",", "."));
@@ -716,6 +715,7 @@
         let tds = cols.map(c => {
           if (c === "usuario_id") return `<td><strong>${obtenerNombreUsuario(d[c])}</strong></td>`;
           if (c === "condominio_id") return `<td>${obtenerNombreCondo(d[c])}</td>`;
+          if (c === "rol") return `<td><strong>${obtenerNombreRol(d[c])}</strong></td>`;
           if (c === "estatus_geocerca") {
             const cls = (d[c]||"").includes("Válido") ? "badge-Valido" : "badge-FueradeRango";
             return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
@@ -736,6 +736,327 @@
       }).join("");
 
       $("tablaBody").innerHTML = tb || "<tr><td colspan='10'>No hay registros disponibles en este módulo.</td></tr>";
+    }
+
+    // --- GENERADOR INTELIGENTE DE CONTROLES PARA CRUD UNIVERSAL ---
+    function generarCampoFormulario(columna, valorActual, modulo) {
+      const val = valorActual !== undefined && valorActual !== null ? String(valorActual) : "";
+      const listas = appData.listas || {};
+
+      // 1. Selector de ROL
+      if (columna === "rol") {
+        const roles = listas.roles || [];
+        const opciones = roles.map(r => `<option value="${r.id}" ${val.toLowerCase() === r.id.toLowerCase() ? "selected" : ""}>${r.nombre}</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 2. Selector de ESTADOS
+      if (columna === "estado") {
+        if (modulo === "Incidencias") {
+          const estadosInc = listas.estadosIncidencia || ["Pendiente", "En Proceso", "Por Validar", "Cerrada", "No Conforme", "Cancelada"];
+          const opciones = estadosInc.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e}</option>`).join("");
+          return `<select id="f_${columna}">${opciones}</select>`;
+        } else {
+          const estadosGen = listas.estadosGenerales || ["Activo", "Inactivo"];
+          const opciones = estadosGen.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e}</option>`).join("");
+          return `<select id="f_${columna}">${opciones}</select>`;
+        }
+      }
+
+      // 3. Selector de CATEGORÍAS (Incidencias)
+      if (columna === "categoria") {
+        const cats = listas.categorias || [];
+        const opciones = cats.map(cat => `<option value="${cat}" ${val === cat ? "selected" : ""}>${cat}</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 4. Selector de PRIORIDADES (Incidencias)
+      if (columna === "prioridad") {
+        const prios = listas.prioridades || ["Baja", "Media", "Alta", "Urgente"];
+        const opciones = prios.map(p => `<option value="${p}" ${val === p ? "selected" : ""}>${p}</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 5. Selector de ESPECIALIDADES
+      if (columna === "especialidad") {
+        const esp = ["", "General", ...(listas.especialidades || [])];
+        const opciones = esp.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e ? e : "-- Ninguna / General --"}</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 6. Selector Relacional: CONDOMINIO_ID (cuando no estamos en la tabla de condominios)
+      if (columna === "condominio_id" && modulo !== "Condominios") {
+        const condos = appData.condominios || [];
+        const opciones = condos.map(c => `<option value="${c.condominio_id}" ${val === c.condominio_id ? "selected" : ""}>${c.nombre} (${c.condominio_id})</option>`).join("");
+        return `<select id="f_${columna}">${opciones || '<option value="">Sin condominios</option>'}</select>`;
+      }
+
+      // 7. Selector Relacional: USUARIO_ID (cuando estamos en Membresías o Incidencias)
+      if (columna === "usuario_id" && modulo !== "Usuarios") {
+        const usrs = appData.usuarios || [];
+        const opciones = usrs.map(u => `<option value="${u.usuario_id}" ${val === u.usuario_id ? "selected" : ""}>${u.nombre} (${u.email})</option>`).join("");
+        return `<select id="f_${columna}">${opciones || '<option value="">Sin usuarios</option>'}</select>`;
+      }
+
+      // 8. Selector Relacional: DEPARTAMENTO_ID (cuando estamos en Membresías o Incidencias)
+      if (columna === "departamento_id" && modulo !== "Departamentos") {
+        const deptos = appData.departamentos || [];
+        let opciones = `<option value="">-- Sin departamento --</option>`;
+        opciones += deptos.map(d => `<option value="${d.departamento_id}" ${val === d.departamento_id ? "selected" : ""}>${d.departamento_id} (Torre ${d.torre || '-'} - Depto ${d.numero_departamento || '-'})</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 9. Selector de EVENTOS DE TURNO
+      if (columna === "tipo_registro") {
+        const eventos = listas.eventosTurno || ["Entrada", "Salida a Comer", "Regreso de Comer", "Salida"];
+        const opciones = eventos.map(ev => `<option value="${ev}" ${val === ev ? "selected" : ""}>${ev}</option>`).join("");
+        return `<select id="f_${columna}">${opciones}</select>`;
+      }
+
+      // 10. Campo DESCRIPCIÓN (Multilínea)
+      if (columna === "descripcion") {
+        return `<textarea id="f_${columna}" rows="3">${val}</textarea>`;
+      }
+
+      // 11. LLAVE PRIMARIA EN MODO EDICIÓN (Lectura únicamente)
+      const esLlavePrimaria = (modulo === "Condominios" && columna === "condominio_id") ||
+                              (modulo === "Usuarios" && columna === "usuario_id") ||
+                              (modulo === "Departamentos" && columna === "departamento_id") ||
+                              (modulo === "Membresias" && columna === "membresia_id") ||
+                              (modulo === "Incidencias" && columna === "incidencia_id");
+
+      if (esLlavePrimaria && val) {
+        return `<input type="text" id="f_${columna}" value="${val}" readonly style="background:#f1f5f9; cursor:not-allowed;">`;
+      }
+
+      // Default: Input de texto normal
+      let valorInput = val;
+      if (columna === "radio_tolerancia_mts" && !valorInput) valorInput = "150";
+      return `<input type="text" id="f_${columna}" value="${valorInput}">`;
+    }
+
+    // --- FORMULARIO CRUD UNIVERSAL ---
+    function modalCrud(idEdit = null) {
+      editandoId = idEdit;
+      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
+      
+      const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
+      $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
+      
+      const form = $("modalForm");
+      form.innerHTML = "";
+      
+      const clave = moduloActual.toLowerCase();
+      const datos = appData[clave] || appData[clave + 's'] || [];
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+      
+      let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
+      let colsForm = colsVisibles[moduloActual] || [];
+
+      if (moduloActual === "Condominios") {
+        $("asistenteGpsCondominio").classList.remove("oculto");
+        $("msgGpsAuto").innerText = "";
+      } else {
+        $("asistenteGpsCondominio").classList.add("oculto");
+      }
+
+      colsForm.forEach(c => {
+        form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
+        let val = reg[c] !== undefined ? reg[c] : "";
+        form.innerHTML += generarCampoFormulario(c, val, moduloActual);
+      });
+
+      $("modal").classList.remove("oculto");
+    }
+
+    function autocompletarCoordenadasCondo() {
+      const msg = $("msgGpsAuto");
+      msg.innerText = "Consultando GPS...";
+      msg.style.color = "blue";
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const latInput = $("f_latitud");
+          const lonInput = $("f_longitud");
+          const radioInput = $("f_radio_tolerancia_mts");
+
+          if (latInput && lonInput) {
+            latInput.value = pos.coords.latitude.toFixed(6);
+            lonInput.value = pos.coords.longitude.toFixed(6);
+            if(radioInput && !radioInput.value) radioInput.value = "150";
+            msg.innerText = "✓ Coordenadas fijadas.";
+            msg.style.color = "green";
+          }
+        },
+        err => {
+          msg.innerText = "Error GPS: " + err.message;
+          msg.style.color = "red";
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    async function guardarRegistro() {
+      let datosSend = {};
+      // Captura tanto inputs como selects y textareas
+      const controles = $("modalForm").querySelectorAll("input, select, textarea");
+      controles.forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
+
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+
+      try {
+        await llamarAPI("guardarRegistro", {
+          tablaNombre: moduloActual,
+          datos: datosSend,
+          idColumna: keyId,
+          idValor: editandoId
+        });
+        $("modal").classList.add("oculto");
+        iniciarApp(usuarioEmuladoActualId);
+      } catch (err) {
+        alert("Error al guardar: " + err.message);
+      }
+    }
+
+    async function borrarRegistro() {
+      if(!confirm("¿Deseas dar de baja este registro?")) return;
+      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
+                    moduloActual === "Membresias" ? "membresia_id" : 
+                    moduloActual.slice(0,-1).toLowerCase() + "_id";
+
+      try {
+        await llamarAPI("eliminarRegistro", {
+          tablaNombre: moduloActual,
+          idColumna: keyId,
+          idValor: editandoId
+        });
+        $("modal").classList.add("oculto");
+        iniciarApp(usuarioEmuladoActualId);
+      } catch (err) {
+        alert("Error al eliminar: " + err.message);
+      }
+    }
+
+    // --- ALTA DE USUARIOS Y ASIGNACIÓN DE PRIVILEGIOS ---
+    function abrirModalAltaUsuario() {
+      $("nuevoEmail").value = "";
+      $("nuevoNombre").value = "";
+      $("msgAltaUsuario").innerText = "";
+      $("cajaNombreNuevo").style.display = "block";
+
+      // Poblar datalist con usuarios existentes
+      const dl = $("listaCorreosExistentes");
+      dl.replaceChildren();
+      (appData.usuarios || []).forEach(u => {
+        dl.innerHTML += `<option value="${u.email}">${u.nombre}</option>`;
+      });
+
+      // Poblar lista de condominios
+      const selCondo = $("nuevoCondominio");
+      selCondo.replaceChildren();
+      (appData.condominios || []).forEach(c => {
+        selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
+      });
+
+      // Poblar lista dinámica de roles desde el backend
+      const selRol = $("nuevoRol");
+      selRol.replaceChildren();
+      (appData.listas.roles || []).forEach(r => {
+        selRol.innerHTML += `<option value="${r.id}">${r.nombre}</option>`;
+      });
+
+      // Poblar lista de especialidades
+      const selEsp = $("nuevaEspecialidad");
+      selEsp.replaceChildren();
+      (appData.listas.especialidades || []).forEach(e => {
+        selEsp.innerHTML += `<option value="${e}">${e}</option>`;
+      });
+
+      actualizarDeptosAlta();
+      selCondo.onchange = actualizarDeptosAlta;
+      toggleRolCampos(selRol.value);
+
+      $("modalAltaUsuario").classList.remove("oculto");
+    }
+
+    function verificarSiExisteUsuario(email) {
+      email = String(email || "").trim().toLowerCase();
+      const u = (appData.usuarios || []).find(x => x.email.toLowerCase() === email);
+      if (u) {
+        $("nuevoNombre").value = u.nombre;
+        $("cajaNombreNuevo").style.display = "none";
+      } else {
+        $("cajaNombreNuevo").style.display = "block";
+      }
+    }
+
+    function toggleRolCampos(rol) {
+      if (rol === "tecnico") {
+        $("cajaEspecialidad").classList.remove("oculto");
+        $("cajaDeptoAsignado").classList.add("oculto");
+      } else if (rol === "residente") {
+        $("cajaEspecialidad").classList.add("oculto");
+        $("cajaDeptoAsignado").classList.remove("oculto");
+      } else {
+        $("cajaEspecialidad").classList.add("oculto");
+        $("cajaDeptoAsignado").classList.add("oculto");
+      }
+    }
+
+    function actualizarDeptosAlta() {
+      const condoId = $("nuevoCondominio").value;
+      const selDepto = $("nuevoDepto");
+      selDepto.replaceChildren();
+      
+      const deptos = (appData.departamentos || []).filter(d => d.condominio_id === condoId && d.estado !== "Inactivo");
+      deptos.forEach(d => {
+        selDepto.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (Torre ${d.torre} - Depto ${d.numero_departamento})</option>`;
+      });
+      if (!deptos.length) selDepto.innerHTML = `<option value="">Sin departamentos</option>`;
+    }
+
+    async function ejecutarAltaUsuario() {
+      const email = $("nuevoEmail").value.trim();
+      const nombre = $("nuevoNombre").value.trim();
+      const condominio_id = $("nuevoCondominio").value;
+      const rol = $("nuevoRol").value;
+      const especialidad = rol === "tecnico" ? $("nuevaEspecialidad").value : "";
+      const departamento_id = rol === "residente" ? $("nuevoDepto").value : "";
+
+      if (!email || !condominio_id || !rol) {
+        return $("msgAltaUsuario").innerText = "Completa los campos requeridos.";
+      }
+
+      $("btnCrearUsuarioCompleto").disabled = true;
+      $("msgAltaUsuario").innerText = "Guardando...";
+
+      const payload = {
+        nombre: nombre,
+        email: email,
+        condominio_id: condominio_id,
+        rol: rol,
+        especialidad: especialidad,
+        departamento_id: departamento_id
+      };
+
+      try {
+        const r = await llamarAPI("altaUsuarioConAcceso", payload);
+        $("btnCrearUsuarioCompleto").disabled = false;
+        if (r.correcto) {
+          $("msgAltaUsuario").innerText = r.mensaje;
+          setTimeout(() => {
+            $("modalAltaUsuario").classList.add("oculto");
+            iniciarApp(usuarioEmuladoActualId);
+          }, 1800);
+        }
+      } catch (err) {
+        $("btnCrearUsuarioCompleto").disabled = false;
+        $("msgAltaUsuario").innerText = err.message;
+      }
     }
 
     // --- RELOJ CHECADOR ---
@@ -873,194 +1194,6 @@
         $("btnGuardarChecada").disabled = false;
         $("btnGuardarChecada").innerText = "Confirmar Marcaje";
         $("msgChecador").innerText = "Error: " + err.message;
-      }
-    }
-
-    // --- FORMULARIO CRUD ---
-    function modalCrud(idEdit = null) {
-      editandoId = idEdit;
-      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
-      
-      const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
-      $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
-      
-      const form = $("modalForm");
-      form.innerHTML = "";
-      
-      const clave = moduloActual.toLowerCase();
-      const datos = appData[clave] || appData[clave + 's'] || [];
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
-      
-      let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
-      let colsForm = colsVisibles[moduloActual] || [];
-
-      if (moduloActual === "Condominios") {
-        $("asistenteGpsCondominio").classList.remove("oculto");
-        $("msgGpsAuto").innerText = "";
-      } else {
-        $("asistenteGpsCondominio").classList.add("oculto");
-      }
-
-      colsForm.forEach(c => {
-        form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
-        let val = reg[c] !== undefined ? reg[c] : "";
-        if (c === "radio_tolerancia_mts" && !val) val = "150";
-        form.innerHTML += `<input type="text" id="f_${c}" value="${val}">`;
-      });
-
-      $("modal").classList.remove("oculto");
-    }
-
-    function autocompletarCoordenadasCondo() {
-      const msg = $("msgGpsAuto");
-      msg.innerText = "Consultando GPS...";
-      msg.style.color = "blue";
-
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const latInput = $("f_latitud");
-          const lonInput = $("f_longitud");
-          const radioInput = $("f_radio_tolerancia_mts");
-
-          if (latInput && lonInput) {
-            latInput.value = pos.coords.latitude.toFixed(6);
-            lonInput.value = pos.coords.longitude.toFixed(6);
-            if(radioInput && !radioInput.value) radioInput.value = "150";
-            msg.innerText = "✓ Coordenadas fijadas.";
-            msg.style.color = "green";
-          }
-        },
-        err => {
-          msg.innerText = "Error GPS: " + err.message;
-          msg.style.color = "red";
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-
-    async function guardarRegistro() {
-      let datosSend = {};
-      const inputs = $("modalForm").querySelectorAll("input");
-      inputs.forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
-
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
-
-      try {
-        await llamarAPI("guardarRegistro", {
-          tablaNombre: moduloActual,
-          datos: datosSend,
-          idColumna: keyId,
-          idValor: editandoId
-        });
-        $("modal").classList.add("oculto");
-        iniciarApp(usuarioEmuladoActualId);
-      } catch (err) {
-        alert("Error al guardar: " + err.message);
-      }
-    }
-
-    async function borrarRegistro() {
-      if(!confirm("¿Deseas dar de baja este registro?")) return;
-      const keyId = moduloActual === "Usuarios" ? "usuario_id" : 
-                    moduloActual === "Membresias" ? "membresia_id" : 
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
-
-      try {
-        await llamarAPI("eliminarRegistro", {
-          tablaNombre: moduloActual,
-          idColumna: keyId,
-          idValor: editandoId
-        });
-        $("modal").classList.add("oculto");
-        iniciarApp(usuarioEmuladoActualId);
-      } catch (err) {
-        alert("Error al eliminar: " + err.message);
-      }
-    }
-
-    // --- ALTA DE USUARIOS ---
-    function abrirModalAltaUsuario() {
-      $("nuevoEmail").value = "";
-      $("nuevoNombre").value = "";
-      $("msgAltaUsuario").innerText = "";
-
-      const selCondo = $("nuevoCondominio");
-      selCondo.replaceChildren();
-      appData.condominios.forEach(c => {
-        selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
-      });
-
-      actualizarDeptosAlta();
-      selCondo.onchange = actualizarDeptosAlta;
-      $("modalAltaUsuario").classList.remove("oculto");
-    }
-
-    function toggleRolCampos(rol) {
-      if (rol === "tecnico") {
-        $("cajaEspecialidad").classList.remove("oculto");
-        $("cajaDeptoAsignado").classList.add("oculto");
-      } else if (rol === "residente") {
-        $("cajaEspecialidad").classList.add("oculto");
-        $("cajaDeptoAsignado").classList.remove("oculto");
-      } else {
-        $("cajaEspecialidad").classList.add("oculto");
-        $("cajaDeptoAsignado").classList.add("oculto");
-      }
-    }
-
-    function actualizarDeptosAlta() {
-      const condoId = $("nuevoCondominio").value;
-      const selDepto = $("nuevoDepto");
-      selDepto.replaceChildren();
-      
-      const deptos = appData.departamentos.filter(d => d.condominio_id === condoId && d.estado !== "Inactivo");
-      deptos.forEach(d => {
-        selDepto.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (Torre ${d.torre} - ${d.numero_departamento})</option>`;
-      });
-      if (!deptos.length) selDepto.innerHTML = `<option value="">Sin departamentos</option>`;
-    }
-
-    async function ejecutarAltaUsuario() {
-      const email = $("nuevoEmail").value.trim();
-      const nombre = $("nuevoNombre").value.trim();
-      const condominio_id = $("nuevoCondominio").value;
-      const rol = $("nuevoRol").value;
-      const especialidad = rol === "tecnico" ? $("nuevaEspecialidad").value : "";
-      const departamento_id = rol === "residente" ? $("nuevoDepto").value : "";
-
-      if (!email || !condominio_id || !rol) {
-        return $("msgAltaUsuario").innerText = "Completa los campos requeridos.";
-      }
-
-      $("btnCrearUsuarioCompleto").disabled = true;
-      $("msgAltaUsuario").innerText = "Guardando...";
-
-      const payload = {
-        nombre: nombre,
-        email: email,
-        condominio_id: condominio_id,
-        rol: rol,
-        especialidad: especialidad,
-        departamento_id: departamento_id
-      };
-
-      try {
-        const r = await llamarAPI("altaUsuarioConAcceso", payload);
-        $("btnCrearUsuarioCompleto").disabled = false;
-        if (r.correcto) {
-          $("msgAltaUsuario").innerText = r.mensaje;
-          setTimeout(() => {
-            $("modalAltaUsuario").classList.add("oculto");
-            iniciarApp(usuarioEmuladoActualId);
-          }, 1800);
-        }
-      } catch (err) {
-        $("btnCrearUsuarioCompleto").disabled = false;
-        $("msgAltaUsuario").innerText = err.message;
       }
     }
 
