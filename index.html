@@ -86,7 +86,6 @@
     .star { color: #cbd5e1; transition: color 0.2s; }
     .star.active { color: #eab308; }
 
-    /* Estilos del Visor Lightbox */
     #modalLightbox {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.92); z-index: 2500;
@@ -124,7 +123,7 @@
 </head>
 <body>
 
-  <!-- VISOR LIGHTBOX PARA FOTOS Y VIDEOS -->
+  <!-- VISOR LIGHTBOX -->
   <div id="modalLightbox" class="oculto" onclick="clickFondoLightbox(event)">
     <div class="lightbox-card">
       <div class="lightbox-header">
@@ -239,7 +238,7 @@
       <header class="topbar">
         <div class="topbar-left">
           <button class="btn-menu-toggle" onclick="toggleSidebar()">☰</button>
-          <h3 id="moduloTitulo">Asistencia</h3>
+          <h3 id="moduloTitulo">Condominios</h3>
         </div>
         
         <div class="topbar-right">
@@ -485,6 +484,39 @@
         <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modal').classList.add('oculto')">&times;</span>
       </div>
       <div id="modalForm"></div>
+
+      <!-- ASISTENTE DE GEOCERCA (GPS EN VIVO O ENLACE/COORDENADAS GOOGLE MAPS) -->
+      <div id="asistenteGpsCondominio" class="oculto" style="margin-top:14px; padding:14px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
+        <div style="font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
+          📍 Asistente de Geocerca Satelital
+        </div>
+        <p style="font-size:11px; color:#1e3a8a; margin-bottom:10px;">
+          Elige cualquiera de las dos opciones para autocompletar la latitud y longitud del condominio:
+        </p>
+
+        <!-- Opción 1: GPS del dispositivo en sitio -->
+        <div style="margin-bottom:12px;">
+          <button type="button" class="btn btn-sm btn-warning" onclick="autocompletarCoordenadasCondo()" style="width:100%; justify-content:center;">
+            📍 Opción 1: Tomar mi ubicación actual (GPS en sitio)
+          </button>
+          <div id="msgGpsAuto" style="font-size:11px; margin-top:4px;"></div>
+        </div>
+
+        <!-- Opción 2: Pegar link o coordenadas de Google Maps -->
+        <div>
+          <label style="font-size:11px; font-weight:bold; color:#1e3a8a; display:block; margin-bottom:4px;">
+            🗺️ Opción 2: Pegar link o coordenadas de Google Maps:
+          </label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="inputMapsLink" placeholder="Pega el enlace de Google Maps o 19.4326, -99.1332" style="margin-bottom:0; font-size:12px; padding:8px;">
+            <button type="button" id="btnExtraerMaps" class="btn btn-sm btn-primary" onclick="procesarEnlaceMaps()" style="white-space:nowrap; padding:8px 12px;">
+              Extraer
+            </button>
+          </div>
+          <div id="msgMapsLink" style="font-size:11px; margin-top:4px;"></div>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-danger oculto" id="btnBorrar" onclick="borrarRegistro()">Desactivar</button>
         <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modal').classList.add('oculto')">Cancelar</button>
@@ -515,7 +547,7 @@
     }
 
     let appData = null;
-    let moduloActual = 'Asistencia';
+    let moduloActual = 'Condominios';
     let editandoId = null;
     let usuarioEmuladoActualId = "";
 
@@ -532,7 +564,7 @@
     let columnaOrdenada = null;
     let ordenAscendente = true;
 
-    // --- VISOR LIGHTBOX INTELIGENTE ---
+    // --- VISOR LIGHTBOX ---
     function abrirLightbox(url, tipo = 'auto', titulo = 'Evidencia Multimedia') {
       if (!url) return alert("No hay archivo multimedia disponible.");
       
@@ -542,7 +574,6 @@
       container.innerHTML = `<div style="color:#94a3b8; font-size:13px;">Cargando multimedia...</div>`;
       $("modalLightbox").classList.remove("oculto");
 
-      // Detección de enlace de Google Drive para incrustar preview nativo
       const matchDrive = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
       if (matchDrive && matchDrive[1]) {
         const driveId = matchDrive[1];
@@ -550,25 +581,21 @@
         return;
       }
 
-      // Si es imagen directa o base64
       if (url.startsWith("data:image") || url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || tipo === 'imagen') {
         container.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" alt="Evidencia">`;
         return;
       }
 
-      // Si es video directo o base64
       if (url.startsWith("data:video") || url.match(/\.(mp4|webm|ogg|mov)($|\?)/i) || tipo === 'video') {
         container.innerHTML = `<video src="${url}" controls autoplay playsinline style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;"></video>`;
         return;
       }
 
-      // Fallback a iframe genérico
       container.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`;
     }
 
     function cerrarLightbox() {
-      const container = $("lightboxContenido");
-      container.innerHTML = ""; // Detiene videos e iframes en reproducción
+      $("lightboxContenido").innerHTML = "";
       $("modalLightbox").classList.add("oculto");
     }
 
@@ -642,6 +669,89 @@
         if (ubicacionGPSRondin.lat !== null) $("btnEnviarRondin").disabled = false;
       };
       reader.readAsDataURL(file);
+    }
+
+    // --- ASISTENTE DE GEOCERCA: GPS Y GOOGLE MAPS ---
+    function autocompletarCoordenadasCondo() {
+      const msg = $("msgGpsAuto");
+      msg.innerHTML = `<span style="color:#2563eb">Consultando satélites GPS...</span>`;
+
+      if (!navigator.geolocation) {
+        msg.innerHTML = `<span style="color:var(--danger)">Dispositivo sin sensor GPS.</span>`;
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+          const acc = Math.round(pos.coords.accuracy);
+
+          if ($("f_latitud")) $("f_latitud").value = lat;
+          if ($("f_longitud")) $("f_longitud").value = lon;
+          if ($("f_radio_tolerancia_mts") && !$("f_radio_tolerancia_mts").value) {
+            $("f_radio_tolerancia_mts").value = "150";
+          }
+          msg.innerHTML = `<span style="color:var(--success)">✓ GPS fijado: Lat: ${lat}, Lon: ${lon} (±${acc}m)</span>`;
+        },
+        err => {
+          msg.innerHTML = `<span style="color:var(--danger)">Error GPS: ${err.message}. Activa la ubicación de tu equipo.</span>`;
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+
+    async function procesarEnlaceMaps() {
+      const raw = $("inputMapsLink").value.trim();
+      const msg = $("msgMapsLink");
+      const btn = $("btnExtraerMaps");
+
+      if (!raw) {
+        msg.innerHTML = `<span style="color:var(--danger)">Pega un enlace o coordenadas primero.</span>`;
+        return;
+      }
+      msg.innerHTML = `<span style="color:#2563eb">Extrayendo coordenadas...</span>`;
+
+      // 1. Detección instantánea con expresiones regulares en el navegador
+      const regexAt = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+      const regexQ = /[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/;
+      const regexRaw = /^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/;
+
+      let lat = null, lon = null;
+      let match = raw.match(regexAt) || raw.match(regexQ) || raw.match(regexRaw);
+
+      if (match) {
+        lat = parseFloat(match[1]).toFixed(6);
+        lon = parseFloat(match[2]).toFixed(6);
+      } else {
+        // 2. Si es enlace acortado (maps.app.goo.gl o goo.gl), resolver redirección en servidor
+        btn.disabled = true;
+        try {
+          msg.innerHTML = `<span style="color:#2563eb">Resolviendo enlace corto de Google Maps...</span>`;
+          const res = await llamarAPI("resolverUrlMaps", { url: raw });
+          if (res && res.correcto) {
+            lat = parseFloat(res.latitud).toFixed(6);
+            lon = parseFloat(res.longitud).toFixed(6);
+          }
+        } catch (err) {
+          msg.innerHTML = `<span style="color:var(--danger)">${err.message}</span>`;
+          btn.disabled = false;
+          return;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      if (lat && lon) {
+        if ($("f_latitud")) $("f_latitud").value = lat;
+        if ($("f_longitud")) $("f_longitud").value = lon;
+        if ($("f_radio_tolerancia_mts") && !$("f_radio_tolerancia_mts").value) {
+          $("f_radio_tolerancia_mts").value = "150";
+        }
+        msg.innerHTML = `<span style="color:var(--success)">✓ Coordenadas fijadas: Lat: ${lat}, Lon: ${lon}</span>`;
+      } else {
+        msg.innerHTML = `<span style="color:var(--danger)">No se detectaron coordenadas válidas.</span>`;
+      }
     }
 
     // --- BIOMETRÍA ---
@@ -837,19 +947,16 @@
       const esAdminOsuper = (rol === "superadmin" || rol === "administracion");
       const esVigilante = (rol === "vigilante");
 
-      // Menús laterales según perfil
       $("menuAdmin").classList.toggle("oculto", !esAdminOsuper);
       $("menuVigilante").classList.toggle("oculto", !esVigilante);
       $("menuOperativo").classList.toggle("oculto", rol !== "tecnico");
       $("menuResidente").classList.toggle("oculto", rol !== "residente");
 
-      // El vigilante NUNCA debe ver los botones de administración, residente ni CRUD
       $("btnAltaUsuario").classList.toggle("oculto", !esAdminOsuper);
       $("btnNuevo").classList.toggle("oculto", esVigilante);
       $("btnSubirPago").classList.toggle("oculto", rol !== "residente");
       $("btnRegistrarPaquete").classList.toggle("oculto", rol !== "residente" && !esAdminOsuper);
 
-      // Botones operativos exclusivos del vigilante
       $("btnRelojTop").classList.toggle("oculto", !esVigilante && rol !== "tecnico" && !esAdminOsuper);
       $("btnRegistrarRondin").classList.toggle("oculto", !esVigilante && !esAdminOsuper);
 
@@ -988,11 +1095,9 @@
                         (d[c] === "Rechazado" || d[c] === "No Conforme" || d[c] === "Inactivo") ? "badge-Rechazado" : "badge-Pendiente";
             return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
           }
-          // VISUALIZACIÓN LIGHTBOX PARA VIDEOS
           if (c === "video_url") {
             return `<td>${d[c] ? `<button type="button" class="btn btn-sm btn-purple" style="padding:4px 8px; font-size:11px;" onclick="abrirLightbox('${d[c]}', 'video', 'Rondín de Seguridad - ${d.torre || ''}')">▶️ Ver Video</button>` : '<small style="color:#94a3b8">Sin video</small>'}</td>`;
           }
-          // VISUALIZACIÓN LIGHTBOX PARA FOTOS Y COMPROBANTES
           if (c === "comprobante_url" || c === "foto_url" || c === "foto_despues_url" || c === "foto_rechazo_url") {
             let label = (c === "comprobante_url") ? "Comprobante" : 
                         (c === "foto_despues_url") ? "Reparación" : 
@@ -1302,11 +1407,13 @@
       } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     }
 
-    // --- CRUD Y ALTA ---
+    // --- CRUD Y FORMULARIOS ---
     function modalCrud(idEdit = null) {
       if (appData.rolActivo === "vigilante") return;
       editandoId = idEdit;
-      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
+      const nombreModulo = (moduloActual === "Privilegios") ? "Privilegio" : 
+                           (moduloActual === "Condominios") ? "Condominio" : moduloActual;
+      $("modalTit").innerText = idEdit ? `Editar ${nombreModulo}` : `Nuevo ${nombreModulo}`;
       const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
       $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
       
@@ -1320,6 +1427,16 @@
 
       if (moduloActual === "Incidencias" && !idEdit && appData.rolActivo === "residente") {
         cols = ["departamento_id", "categoria", "descripcion", "prioridad"];
+      }
+
+      // Mostrar asistente satelital si se está en Condominios
+      if (moduloActual === "Condominios") {
+        $("asistenteGpsCondominio").classList.remove("oculto");
+        $("msgGpsAuto").innerText = "";
+        $("msgMapsLink").innerText = "";
+        $("inputMapsLink").value = "";
+      } else {
+        $("asistenteGpsCondominio").classList.add("oculto");
       }
 
       cols.forEach(c => {
@@ -1350,7 +1467,9 @@
         } else if (c === "descripcion") {
           form.innerHTML += `<textarea id="f_${c}" rows="3">${val}</textarea>`;
         } else {
-          form.innerHTML += `<input type="text" id="f_${c}" value="${val}">`;
+          let valInput = val;
+          if (c === "radio_tolerancia_mts" && !valInput) valInput = "150";
+          form.innerHTML += `<input type="text" id="f_${c}" value="${valInput}">`;
         }
       });
       $("modal").classList.remove("oculto");
