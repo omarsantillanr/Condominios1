@@ -119,7 +119,7 @@
   <div id="loginView">
     <div class="login-box">
       <h2 style="margin-bottom:6px; font-size:20px; text-align:center;">ERP Condominios</h2>
-      <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Accede al portal operativo y de residentes.</p>
+      <p style="color:#64748b; font-size:13px; margin-bottom:18px; text-align:center;">Acceso seguro al portal.</p>
       
       <div id="cajaBiometriaLogin" class="oculto" style="margin-bottom: 18px;">
         <button class="btn btn-purple" id="btnEntrarBio" style="width:100%; font-size:14px; padding: 12px;" onclick="ingresarConBiometria()">
@@ -167,6 +167,7 @@
         <div class="nav-item" onclick="abrirModulo('Usuarios', this)">Directorio Personal / Condóminos</div>
         <div class="nav-item" onclick="abrirModulo('Privilegios', this)">Asignación de Privilegios</div>
         <div class="nav-item" onclick="abrirModulo('Asistencia', this)">⏱️ Bitácora de Asistencia</div>
+        <div class="nav-item" onclick="abrirModulo('Rondines', this)">📹 Rondines de Seguridad</div>
         <div class="nav-item" onclick="abrirModulo('Accesos', this)">📊 Auditoría de Accesos</div>
 
         <div class="nav-group">Operación y Servicios</div>
@@ -175,16 +176,22 @@
         <div class="nav-item" onclick="abrirModulo('Paqueteria', this)">📦 Paquetería y Envíos</div>
       </div>
 
+      <!-- Menú Vigilancia / Seguridad -->
+      <div id="menuVigilante" class="oculto">
+        <div class="nav-group">Seguridad de Torre</div>
+        <div class="nav-item activo" onclick="abrirModulo('Asistencia', this)">⏱️ Asistencia a Torre</div>
+        <div class="nav-item" onclick="abrirModulo('Rondines', this)">📹 Rondines de Vigilancia</div>
+      </div>
+
       <!-- Menú Operativo / Técnico -->
       <div id="menuOperativo" class="oculto">
         <div class="nav-group">Operación Diaria</div>
         <div class="nav-item" onclick="abrirModalChecador()">⏱️ Checar Turno / Comida</div>
         <div class="nav-item" onclick="abrirModulo('Asistencia', this)">Mis Checadas</div>
         <div class="nav-item" onclick="abrirModulo('Incidencias', this)">Incidencias Asignadas</div>
-        <div class="nav-item" onclick="abrirModulo('Paqueteria', this)">📦 Recepción de Paquetería</div>
       </div>
 
-      <!-- Menú Inquilino / Residente -->
+      <!-- Menú Residente -->
       <div id="menuResidente" class="oculto">
         <div class="nav-group">Mi Departamento</div>
         <div class="nav-item activo" onclick="abrirModulo('Incidencias', this)">🛠️ Mis Reportes de Falla</div>
@@ -197,17 +204,18 @@
       <header class="topbar">
         <div class="topbar-left">
           <button class="btn-menu-toggle" onclick="toggleSidebar()">☰</button>
-          <h3 id="moduloTitulo">Incidencias</h3>
+          <h3 id="moduloTitulo">Asistencia</h3>
         </div>
         
         <div class="topbar-right">
           <div class="user-pill" id="userBadge">Cargando...</div>
           <button class="btn btn-purple btn-sm" id="btnVincularBio" onclick="vincularBiometriaDispositivo()">🔐 Vincular Huella</button>
-          <button class="btn btn-warning" id="btnRelojTop" onclick="abrirModalChecador()">⏱️ Checar</button>
+          <button class="btn btn-warning" id="btnRelojTop" onclick="abrirModalChecador()">⏱️ Checar Asistencia</button>
+          <button class="btn btn-purple" id="btnRegistrarRondin" onclick="abrirModalRegistrarRondin()">📹 Subir Rondín</button>
           <button class="btn btn-success" id="btnAltaUsuario" onclick="abrirModalAltaUsuario()">+ Privilegio</button>
           <button class="btn btn-success" id="btnSubirPago" onclick="abrirModalSubirPago()">+ Subir Pago</button>
           <button class="btn btn-primary" id="btnRegistrarPaquete" onclick="abrirModalRegistrarPaquete()">+ Registrar Paquete</button>
-          <button class="btn" id="btnNuevo" onclick="modalCrud()">+ Nuevo Reporte</button>
+          <button class="btn" id="btnNuevo" onclick="modalCrud()">+ Nuevo</button>
           <button class="btn btn-danger btn-sm" onclick="salir()">Salir</button>
         </div>
       </header>
@@ -223,134 +231,46 @@
     </div>
   </div>
 
-  <!-- MODAL: SUBIR COMPROBANTE DE PAGO -->
-  <div id="modalSubirPago" class="modal-overlay oculto">
+  <!-- MODAL: REGISTRAR RONDÍN EN VIDEO EN TIEMPO REAL -->
+  <div id="modalRegistrarRondin" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
-        <span>Subir Comprobante de Pago</span>
-        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalSubirPago').classList.add('oculto')">&times;</span>
+        <span>📹 Captura de Rondín en Vivo</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalRegistrarRondin').classList.add('oculto')">&times;</span>
       </div>
+
+      <label style="font-size:11px; font-weight:bold;">Condominio Asignado:</label>
+      <select id="rondinCondominioSel"></select>
+
+      <label style="font-size:11px; font-weight:bold;">Torre / Área Patrullada:</label>
+      <input type="text" id="rondinTorre" placeholder="Ej. Torre A - Planta Baja / Estacionamiento">
+
+      <label style="font-size:11px; font-weight:bold;">Video en Tiempo Real (Cámara frontal o trasera):</label>
+      <input type="file" id="inputVideoRondin" accept="video/*" capture="environment" class="oculto" onchange="procesarVideoRondin(this)">
       
-      <label style="font-size:11px; font-weight:bold;">Departamento a Pagar:</label>
-      <select id="pagoDeptoSel"></select>
-
-      <label style="font-size:11px; font-weight:bold;">Concepto:</label>
-      <select id="pagoConceptoSel"></select>
-
-      <label style="font-size:11px; font-weight:bold;">Monto Pagado ($):</label>
-      <input type="number" id="pagoMonto" placeholder="Ej. 1500.00" step="0.01">
-
-      <label style="font-size:11px; font-weight:bold;">Fecha en que realizaste el pago:</label>
-      <input type="date" id="pagoFecha">
-
-      <label style="font-size:11px; font-weight:bold;">Foto / Comprobante de Transferencia:</label>
-      <input type="file" id="inputComprobantePago" accept="image/*" class="oculto" onchange="procesarFotoArchivo(this, 'imgPreviewPago', 'lblFotoPago')">
-      
-      <div class="camera-trigger-box" onclick="$('inputComprobantePago').click()">
-        <span style="font-size:28px;">📄</span><br>
-        <strong style="color:var(--primary); font-size:13px;" id="lblFotoPago">Toca para adjuntar comprobante</strong>
+      <div class="camera-trigger-box" onclick="$('inputVideoRondin').click()" style="border-color:var(--purple); background:#faf5ff;">
+        <span style="font-size:32px;">🎥</span><br>
+        <strong style="color:var(--purple); font-size:13px;" id="lblVideoRondin">Toca aquí para grabar video en vivo (15-30 seg)</strong>
+        <p style="font-size:11px; color:#64748b; margin-top:4px;">Se abre directamente la grabadora de tu teléfono.</p>
       </div>
-      <img id="imgPreviewPago" class="camera-preview" alt="Comprobante">
 
-      <p id="msgPago" style="font-size:12px; margin-top:8px;"></p>
+      <video id="videoPreviewRondin" controls class="camera-preview" style="max-height:200px; display:none; width:100%; border-radius:6px;"></video>
+
+      <div class="geo-pill" id="geoEstadoRondin">📍 GPS: Verificando que te encuentres en la torre...</div>
+
+      <label style="font-size:11px; font-weight:bold;">Novedad / Comentario del Rondín (Opcional):</label>
+      <textarea id="rondinComentario" rows="2" placeholder="Sin novedades, accesos despejados y puertas con seguro..."></textarea>
+
+      <p id="msgRondin" style="font-size:12px; margin-top:8px;"></p>
 
       <div class="modal-actions">
-        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalSubirPago').classList.add('oculto')">Cancelar</button>
-        <button class="btn btn-success" id="btnEnviarPago" onclick="ejecutarEnvioPago()">Enviar Comprobante</button>
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalRegistrarRondin').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-purple" id="btnEnviarRondin" onclick="ejecutarEnvioRondin()" disabled>Subir y Validar Rondín</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: REGISTRAR PAQUETERÍA -->
-  <div id="modalRegistrarPaquete" class="modal-overlay oculto">
-    <div class="modal">
-      <div class="modal-header">
-        <span>Aviso de Llegada de Paquetería</span>
-        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalRegistrarPaquete').classList.add('oculto')">&times;</span>
-      </div>
-
-      <label style="font-size:11px; font-weight:bold;">Departamento Destino:</label>
-      <select id="paqueteDeptoSel"></select>
-
-      <label style="font-size:11px; font-weight:bold;">Empresa de Paquetería / Envío:</label>
-      <select id="paqueteEmpresaSel"></select>
-
-      <label style="font-size:11px; font-weight:bold;">Número de Guía / Rastreo (Opcional):</label>
-      <input type="text" id="paqueteGuia" placeholder="Ej. 9400100000000000000000">
-
-      <label style="font-size:11px; font-weight:bold;">Descripción / Contenido estimado:</label>
-      <input type="text" id="paqueteDesc" placeholder="Ej. Caja mediana de Mercado Libre">
-
-      <p id="msgPaquete" style="font-size:12px; margin-top:8px;"></p>
-
-      <div class="modal-actions">
-        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalRegistrarPaquete').classList.add('oculto')">Cancelar</button>
-        <button class="btn btn-success" id="btnEnviarPaquete" onclick="ejecutarEnvioPaquete()">Registrar Paquete</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: RECHAZAR REPARACIÓN CON EVIDENCIA -->
-  <div id="modalRechazarReparacion" class="modal-overlay oculto">
-    <div class="modal">
-      <div class="modal-header">
-        <span style="color:var(--danger)">❌ Rechazar Solución de Incidencia</span>
-        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalRechazarReparacion').classList.add('oculto')">&times;</span>
-      </div>
-
-      <p id="lblFolioRechazo" style="font-size:13px; font-weight:bold; margin-bottom:12px;"></p>
-      
-      <label style="font-size:11px; font-weight:bold;">¿Por qué no estás conforme con el trabajo realizado?:</label>
-      <textarea id="txtMotivoRechazo" rows="3" placeholder="Describe detalladamente qué problema persiste o qué falta reparar..."></textarea>
-
-      <label style="font-size:11px; font-weight:bold;">Foto de Evidencia del Rechazo:</label>
-      <input type="file" id="inputFotoRechazo" accept="image/*" capture="environment" class="oculto" onchange="procesarFotoArchivo(this, 'imgPreviewRechazo', 'lblFotoRechazo')">
-      
-      <div class="camera-trigger-box" onclick="$('inputFotoRechazo').click()">
-        <span style="font-size:28px;">📷</span><br>
-        <strong style="color:var(--danger); font-size:13px;" id="lblFotoRechazo">Toca para tomar foto de la falla que persiste</strong>
-      </div>
-      <img id="imgPreviewRechazo" class="camera-preview" alt="Evidencia">
-
-      <p id="msgRechazo" style="font-size:12px; margin-top:8px;"></p>
-
-      <div class="modal-actions">
-        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalRechazarReparacion').classList.add('oculto')">Cancelar</button>
-        <button class="btn btn-danger" id="btnConfirmarRechazo" onclick="ejecutarRechazoReparacion()">Enviar Rechazo y Evidencia</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: CONFIRMAR Y CALIFICAR SERVICIO -->
-  <div id="modalAceptarServicio" class="modal-overlay oculto">
-    <div class="modal">
-      <div class="modal-header">
-        <span style="color:var(--success)">✅ Confirmar Reparación Conforme</span>
-        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalAceptarServicio').classList.add('oculto')">&times;</span>
-      </div>
-
-      <p id="lblFolioAceptado" style="font-size:13px; font-weight:bold; text-align:center;"></p>
-      
-      <p style="font-size:12px; text-align:center; color:#64748b; margin-top:4px;">Califica la calidad de la atención recibida:</p>
-      <div class="rating-stars" id="contenedorEstrellas">
-        <span class="star" onclick="seleccionarEstrella(1)">★</span>
-        <span class="star" onclick="seleccionarEstrella(2)">★</span>
-        <span class="star" onclick="seleccionarEstrella(3)">★</span>
-        <span class="star" onclick="seleccionarEstrella(4)">★</span>
-        <span class="star active" onclick="seleccionarEstrella(5)">★</span>
-      </div>
-
-      <label style="font-size:11px; font-weight:bold;">Comentario adicional de satisfacción:</label>
-      <input type="text" id="txtComentarioCsat" placeholder="Excelente trabajo, quedó resuelto...">
-
-      <div class="modal-actions">
-        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalAceptarServicio').classList.add('oculto')">Cancelar</button>
-        <button class="btn btn-success" id="btnConfirmarAceptacion" onclick="ejecutarAceptacionServicio()">Cerrar y Aceptar Trabajo</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: RELOJ CHECADOR -->
+  <!-- MODAL: RELOJ CHECADOR (ASISTENCIA) -->
   <div id="modalChecador" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
@@ -361,7 +281,7 @@
       <label style="font-size:11px; font-weight:bold;">1. Evento de Turno:</label>
       <select id="selEventoTurno"></select>
 
-      <label style="font-size:11px; font-weight:bold;">2. Condominio:</label>
+      <label style="font-size:11px; font-weight:bold;">2. Condominio / Edificio:</label>
       <select id="checadorCondominio"></select>
 
       <label style="font-size:11px; font-weight:bold;">3. Foto en Vivo (Sin Galería):</label>
@@ -400,7 +320,7 @@
         <input type="text" id="nuevoNombre" placeholder="Ej. Roberto Gómez">
       </div>
 
-      <label style="font-size:11px; font-weight:bold;">Condominio:</label>
+      <label style="font-size:11px; font-weight:bold;">Condominio Asignado:</label>
       <select id="nuevoCondominio"></select>
 
       <label style="font-size:11px; font-weight:bold;">Rol / Privilegio:</label>
@@ -420,7 +340,104 @@
 
       <div class="modal-actions">
         <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalAltaUsuario').classList.add('oculto')">Cancelar</button>
-        <button class="btn btn-success" id="btnCrearUsuarioCompleto" onclick="ejecutarAltaUsuario()">Guardar</button>
+        <button class="btn btn-success" id="btnCrearUsuarioCompleto" onclick="ejecutarAltaUsuario()">Guardar Privilegio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SUBIR COMPROBANTE DE PAGO -->
+  <div id="modalSubirPago" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Subir Comprobante de Pago</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalSubirPago').classList.add('oculto')">&times;</span>
+      </div>
+      <label style="font-size:11px; font-weight:bold;">Departamento:</label>
+      <select id="pagoDeptoSel"></select>
+      <label style="font-size:11px; font-weight:bold;">Concepto:</label>
+      <select id="pagoConceptoSel"></select>
+      <label style="font-size:11px; font-weight:bold;">Monto ($):</label>
+      <input type="number" id="pagoMonto" step="0.01">
+      <label style="font-size:11px; font-weight:bold;">Fecha de Pago:</label>
+      <input type="date" id="pagoFecha">
+      <input type="file" id="inputComprobantePago" accept="image/*" class="oculto" onchange="procesarFotoArchivo(this, 'imgPreviewPago', 'lblFotoPago')">
+      <div class="camera-trigger-box" onclick="$('inputComprobantePago').click()">
+        <span style="font-size:28px;">📄</span><br>
+        <strong style="color:var(--primary); font-size:13px;" id="lblFotoPago">Toca para adjuntar comprobante</strong>
+      </div>
+      <img id="imgPreviewPago" class="camera-preview" alt="Comprobante">
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalSubirPago').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-success" id="btnEnviarPago" onclick="ejecutarEnvioPago()">Enviar Comprobante</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR PAQUETE -->
+  <div id="modalRegistrarPaquete" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Aviso de Llegada de Paquetería</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalRegistrarPaquete').classList.add('oculto')">&times;</span>
+      </div>
+      <label style="font-size:11px; font-weight:bold;">Departamento Destino:</label>
+      <select id="paqueteDeptoSel"></select>
+      <label style="font-size:11px; font-weight:bold;">Empresa de Paquetería:</label>
+      <select id="paqueteEmpresaSel"></select>
+      <label style="font-size:11px; font-weight:bold;">Guía / Rastreo (Opcional):</label>
+      <input type="text" id="paqueteGuia">
+      <label style="font-size:11px; font-weight:bold;">Descripción del Paquete:</label>
+      <input type="text" id="paqueteDesc">
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalRegistrarPaquete').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-success" id="btnEnviarPaquete" onclick="ejecutarEnvioPaquete()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECHAZAR REPARACIÓN CON EVIDENCIA -->
+  <div id="modalRechazarReparacion" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span style="color:var(--danger)">❌ Rechazar Solución de Incidencia</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalRechazarReparacion').classList.add('oculto')">&times;</span>
+      </div>
+      <p id="lblFolioRechazo" style="font-size:13px; font-weight:bold; margin-bottom:12px;"></p>
+      <label style="font-size:11px; font-weight:bold;">Motivo del Rechazo:</label>
+      <textarea id="txtMotivoRechazo" rows="3" placeholder="Describe la falla que persiste..."></textarea>
+      <input type="file" id="inputFotoRechazo" accept="image/*" capture="environment" class="oculto" onchange="procesarFotoArchivo(this, 'imgPreviewRechazo', 'lblFotoRechazo')">
+      <div class="camera-trigger-box" onclick="$('inputFotoRechazo').click()">
+        <span style="font-size:28px;">📷</span><br>
+        <strong style="color:var(--danger); font-size:13px;" id="lblFotoRechazo">Toca para tomar foto de la falla</strong>
+      </div>
+      <img id="imgPreviewRechazo" class="camera-preview" alt="Evidencia">
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalRechazarReparacion').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-danger" id="btnConfirmarRechazo" onclick="ejecutarRechazoReparacion()">Enviar Rechazo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ACEPTAR SERVICIO -->
+  <div id="modalAceptarServicio" class="modal-overlay oculto">
+    <div class="modal">
+      <div class="modal-header">
+        <span style="color:var(--success)">✅ Confirmar Reparación Conforme</span>
+        <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modalAceptarServicio').classList.add('oculto')">&times;</span>
+      </div>
+      <p id="lblFolioAceptado" style="font-size:13px; font-weight:bold; text-align:center;"></p>
+      <div class="rating-stars" id="contenedorEstrellas">
+        <span class="star" onclick="seleccionarEstrella(1)">★</span>
+        <span class="star" onclick="seleccionarEstrella(2)">★</span>
+        <span class="star" onclick="seleccionarEstrella(3)">★</span>
+        <span class="star" onclick="seleccionarEstrella(4)">★</span>
+        <span class="star active" onclick="seleccionarEstrella(5)">★</span>
+      </div>
+      <label style="font-size:11px; font-weight:bold;">Comentario adicional:</label>
+      <input type="text" id="txtComentarioCsat" placeholder="Excelente trabajo...">
+      <div class="modal-actions">
+        <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modalAceptarServicio').classList.add('oculto')">Cancelar</button>
+        <button class="btn btn-success" id="btnConfirmarAceptacion" onclick="ejecutarAceptacionServicio()">Cerrar y Aceptar</button>
       </div>
     </div>
   </div>
@@ -433,12 +450,6 @@
         <span style="cursor:pointer; color:#999; font-size:20px;" onclick="$('modal').classList.add('oculto')">&times;</span>
       </div>
       <div id="modalForm"></div>
-      
-      <div id="asistenteGpsCondominio" class="oculto" style="margin-top:10px; padding:12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
-        <button type="button" class="btn btn-sm btn-warning" onclick="autocompletarCoordenadasCondo()">📍 Usar mi ubicación actual</button>
-        <span id="msgGpsAuto" style="font-size:11px; margin-left:8px;"></span>
-      </div>
-
       <div class="modal-actions">
         <button class="btn btn-danger oculto" id="btnBorrar" onclick="borrarRegistro()">Desactivar</button>
         <button class="btn" style="background:#cbd5e1; color:#333;" onclick="$('modal').classList.add('oculto')">Cancelar</button>
@@ -469,14 +480,16 @@
     }
 
     let appData = null;
-    let moduloActual = 'Incidencias';
+    let moduloActual = 'Asistencia';
     let editandoId = null;
     let usuarioEmuladoActualId = "";
 
     let fotoBase64Capturada = null;
     let fotoBase64Pago = null;
     let fotoBase64Rechazo = null;
+    let videoBase64Rondin = null;
     let ubicacionGPS = { lat: null, lon: null, precision: null };
+    let ubicacionGPSRondin = { lat: null, lon: null, precision: null };
 
     let folioAccionIncidencia = "";
     let estrellasSeleccionadas = 5;
@@ -484,7 +497,7 @@
     let columnaOrdenada = null;
     let ordenAscendente = true;
 
-    // --- PROCESADOR UNIVERSAL DE FOTOS ---
+    // --- PROCESAMIENTO DE FOTOS Y VIDEOS EN TIEMPO REAL ---
     function procesarFotoArchivo(input, previewId, labelId) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
@@ -497,12 +510,10 @@
           const MAX_WIDTH = 900;
           let width = img.width;
           let height = img.height;
-
           if (width > MAX_WIDTH) {
             height = Math.round((height * MAX_WIDTH) / width);
             width = MAX_WIDTH;
           }
-
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext("2d");
@@ -520,14 +531,38 @@
           const preview = $(previewId);
           preview.src = b64;
           preview.style.display = "block";
-          if (labelId) $(labelId).innerText = "✓ Fotografía adjuntada (Toca para cambiar)";
+          if (labelId) $(labelId).innerText = "✓ Fotografía capturada";
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    // --- BIOMETRÍA NATIVA (WEBAUTHN) ---
+    function procesarVideoRondin(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+
+      // Verificación de tamaño máximo para no exceder límite de carga (25 MB)
+      if (file.size > 25 * 1024 * 1024) {
+        alert("El video es demasiado largo. Graba un recorrido breve de 15 a 30 segundos.");
+        return;
+      }
+
+      const reader = new FileReader();
+      $("lblVideoRondin").innerText = "Procesando video grabado...";
+
+      reader.onload = function(e) {
+        videoBase64Rondin = e.target.result;
+        const videoEl = $("videoPreviewRondin");
+        videoEl.src = URL.createObjectURL(file);
+        videoEl.style.display = "block";
+        $("lblVideoRondin").innerText = "✓ Video en vivo listo (Toca para volver a grabar)";
+        if (ubicacionGPSRondin.lat !== null) $("btnEnviarRondin").disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- BIOMETRÍA ---
     function base64UrlToUint8Array(base64Url) {
       const padding = '='.repeat((4 - base64Url.length % 4) % 4);
       const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -548,7 +583,7 @@
     }
 
     async function vincularBiometriaDispositivo() {
-      if (!window.PublicKeyCredential) return alert("Dispositivo sin soporte biométrico WebAuthn.");
+      if (!window.PublicKeyCredential) return alert("Dispositivo sin soporte biométrico.");
       try {
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
@@ -571,7 +606,7 @@
         if (credencial) {
           localStorage.setItem("erp_bio_cred", credencial.id);
           localStorage.setItem("erp_bio_tok", sessionStorage.getItem("tok"));
-          alert("✓ Huella / Face ID vinculada con éxito a este teléfono.");
+          alert("✓ Huella / Face ID vinculada con éxito.");
           revisarSoporteBiometrico();
         }
       } catch (err) {
@@ -710,47 +745,53 @@
       }
     }
 
-    function seleccionarUsuarioEmulado(userId) {
-      iniciarApp(userId);
-    }
-
-    function restablecerVistaOriginal() {
-      iniciarApp("");
-    }
+    function seleccionarUsuarioEmulado(userId) { iniciarApp(userId); }
+    function restablecerVistaOriginal() { iniciarApp(""); }
 
     function aplicarPrivilegiosUI(rol, user) {
       const deptoTexto = (user.deptos && user.deptos.length) ? ` | Deptos: ${user.deptos.join(", ")}` : '';
       $("userBadge").innerHTML = `<strong>${user.nombre}</strong> (${rol.toUpperCase()}${deptoTexto})`;
 
-      // Visibilidad de menús
+      // Menús laterales según perfil
       $("menuAdmin").classList.toggle("oculto", rol !== "superadmin" && rol !== "administracion");
+      $("menuVigilante").classList.toggle("oculto", rol !== "vigilante");
       $("menuOperativo").classList.toggle("oculto", rol !== "tecnico");
       $("menuResidente").classList.toggle("oculto", rol !== "residente");
 
-      // Visibilidad de botones en topbar
+      // Botones según rol
       $("btnAltaUsuario").classList.toggle("oculto", rol !== "superadmin" && rol !== "administracion");
-      $("btnRelojTop").classList.toggle("oculto", rol !== "tecnico" && rol !== "superadmin" && rol !== "administracion");
-
-      // Botones propios de Residentes
+      $("btnRelojTop").classList.toggle("oculto", rol !== "vigilante" && rol !== "tecnico" && rol !== "superadmin" && rol !== "administracion");
+      $("btnRegistrarRondin").classList.toggle("oculto", rol !== "vigilante" && rol !== "superadmin" && rol !== "administracion");
       $("btnSubirPago").classList.toggle("oculto", rol !== "residente");
       $("btnRegistrarPaquete").classList.toggle("oculto", rol !== "residente" && rol !== "administracion" && rol !== "superadmin");
-      
-      // Botón nuevo reporte
-      $("btnNuevo").innerText = (rol === "residente") ? "+ Reportar Falla" : "+ Nuevo";
-      $("btnNuevo").classList.remove("oculto");
+      $("btnNuevo").classList.toggle("oculto", rol === "vigilante"); // Vigilante no usa CRUD de reportes
 
+      if (rol === "vigilante") {
+        $("btnRelojTop").innerText = "⏱️ Asistencia Torre";
+        if (moduloActual !== "Asistencia" && moduloActual !== "Rondines") moduloActual = "Asistencia";
+      } else if (rol === "residente") {
+        $("btnNuevo").innerText = "+ Reportar Falla";
+        if (moduloActual !== "Incidencias" && moduloActual !== "Pagos" && moduloActual !== "Paqueteria") moduloActual = "Incidencias";
+      } else {
+        $("btnRelojTop").innerText = "⏱️ Checar";
+        $("btnNuevo").innerText = "+ Nuevo";
+      }
+
+      actualizarTituloModulo();
+    }
+
+    function actualizarTituloModulo() {
       $("moduloTitulo").innerText = (moduloActual === "Privilegios") ? "Asignación de Privilegios" : 
                                     (moduloActual === "Accesos") ? "Auditoría de Accesos" : 
                                     (moduloActual === "Pagos") ? "Comprobantes de Pago" : 
-                                    (moduloActual === "Paqueteria") ? "Recepción de Paquetería" : moduloActual;
+                                    (moduloActual === "Paqueteria") ? "Recepción de Paquetería" : 
+                                    (moduloActual === "Rondines") ? "Rondines de Seguridad" : 
+                                    (moduloActual === "Asistencia") ? "Asistencia a Torre" : moduloActual;
     }
 
     function abrirModulo(mod, el) {
       moduloActual = mod;
-      $("moduloTitulo").innerText = (mod === "Privilegios") ? "Asignación de Privilegios" : 
-                                    (mod === "Accesos") ? "Auditoría de Accesos" : 
-                                    (mod === "Pagos") ? "Comprobantes de Pago" : 
-                                    (mod === "Paqueteria") ? "Recepción de Paquetería" : mod;
+      actualizarTituloModulo();
       columnaOrdenada = null;
       ordenAscendente = true;
       document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("activo"));
@@ -766,6 +807,7 @@
       Privilegios: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Membresias: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Accesos: ["acceso_id", "usuario_id", "email", "modulo", "fecha_hora", "dispositivo", "navegador"],
+      Rondines: ["rondin_id", "condominio_id", "torre", "usuario_id", "fecha_hora", "distancia_mts", "estatus_geocerca", "video_url", "comentario"],
       Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "descripcion", "prioridad", "estado"],
       Pagos: ["pago_id", "departamento_id", "concepto", "monto", "fecha_pago", "comprobante_url", "estado", "fecha_registro"],
       Paqueteria: ["paquete_id", "departamento_id", "empresa_paqueteria", "numero_guia", "descripcion", "estado", "fecha_registro"],
@@ -791,12 +833,8 @@
     }
 
     function ordenarPor(col) {
-      if (columnaOrdenada === col) {
-        ordenAscendente = !ordenAscendente;
-      } else {
-        columnaOrdenada = col;
-        ordenAscendente = true;
-      }
+      if (columnaOrdenada === col) ordenAscendente = !ordenAscendente;
+      else { columnaOrdenada = col; ordenAscendente = true; }
       pintarTabla();
     }
 
@@ -811,6 +849,7 @@
                     (moduloActual === "Privilegios" || moduloActual === "Membresias") ? "membresia_id" : 
                     (moduloActual === "Asistencia") ? "asistencia_id" :
                     (moduloActual === "Accesos") ? "acceso_id" :
+                    (moduloActual === "Rondines") ? "rondin_id" :
                     (moduloActual === "Pagos") ? "pago_id" :
                     (moduloActual === "Paqueteria") ? "paquete_id" :
                     moduloActual.slice(0,-1).toLowerCase() + "_id";
@@ -820,31 +859,20 @@
           let valA = a[columnaOrdenada] ?? "";
           let valB = b[columnaOrdenada] ?? "";
 
-          if (columnaOrdenada === "usuario_id") {
-            valA = obtenerNombreUsuario(valA);
-            valB = obtenerNombreUsuario(valB);
-          } else if (columnaOrdenada === "condominio_id") {
-            valA = obtenerNombreCondo(valA);
-            valB = obtenerNombreCondo(valB);
-          } else if (columnaOrdenada === "rol") {
-            valA = obtenerNombreRol(valA);
-            valB = obtenerNombreRol(valB);
-          }
+          if (columnaOrdenada === "usuario_id") { valA = obtenerNombreUsuario(valA); valB = obtenerNombreUsuario(valB); }
+          else if (columnaOrdenada === "condominio_id") { valA = obtenerNombreCondo(valA); valB = obtenerNombreCondo(valB); }
+          else if (columnaOrdenada === "rol") { valA = obtenerNombreRol(valA); valB = obtenerNombreRol(valB); }
 
           const numA = parseFloat(String(valA).replace(",", "."));
           const numB = parseFloat(String(valB).replace(",", "."));
           const esNumerico = !isNaN(numA) && !isNaN(numB) && String(valA).trim() !== "" && String(valB).trim() !== "";
-
-          let res = esNumerico ? (numA - numB) : String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
-          return ordenAscendente ? res : -res;
+          return ordenAscendente ? (esNumerico ? numA - numB : String(valA).localeCompare(String(valB))) : (esNumerico ? numB - numA : String(valB).localeCompare(String(valA)));
         });
       }
 
       let th = cols.map(c => {
         let icono = '<span class="sort-icon">⇅</span>';
-        if (columnaOrdenada === c) {
-          icono = `<span class="sort-icon activo">${ordenAscendente ? '▲' : '▼'}</span>`;
-        }
+        if (columnaOrdenada === c) icono = `<span class="sort-icon activo">${ordenAscendente ? '▲' : '▼'}</span>`;
         return `<th class="sortable" onclick="ordenarPor('${c}')" title="Ordenar">${c.toUpperCase()} ${icono}</th>`;
       }).join("") + "<th>ACCIONES</th>";
       $("tablaHead").innerHTML = `<tr>${th}</tr>`;
@@ -855,63 +883,45 @@
           if (c === "condominio_id") return `<td>${obtenerNombreCondo(d[c])}</td>`;
           if (c === "rol") return `<td><strong>${obtenerNombreRol(d[c])}</strong></td>`;
           if (c === "monto") return `<td><strong>$${parseFloat(d[c]||0).toFixed(2)}</strong></td>`;
+          if (c === "estatus_geocerca") {
+            const cls = (d[c]||"").includes("Válido") ? "badge-Valido" : "badge-FueradeRango";
+            return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
+          }
           if (c === "estado") {
             const cls = (d[c] === "Aprobado" || d[c] === "Cerrada" || d[c] === "Entregado al Inquilino" || d[c] === "Activo") ? "badge-Aprobado" :
                         (d[c] === "Rechazado" || d[c] === "No Conforme" || d[c] === "Inactivo") ? "badge-Rechazado" : "badge-Pendiente";
             return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
           }
+          if (c === "video_url") {
+            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm btn-purple" style="text-decoration:none; padding:4px 8px; font-size:11px;">▶️ Ver Video</a>` : '<small style="color:#94a3b8">Sin video</small>'}</td>`;
+          }
           if (c === "comprobante_url" || c === "foto_url") {
-            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm" style="text-decoration:none; padding:4px 8px; font-size:11px;">📷 Ver Archivo</a>` : '<small style="color:#94a3b8">Sin archivo</small>'}</td>`;
+            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm" style="text-decoration:none; padding:4px 8px; font-size:11px;">📷 Ver Foto</a>` : '<small style="color:#94a3b8">Sin archivo</small>'}</td>`;
           }
           if (c === "distancia_mts") return `<td>${d[c]} m</td>`;
           return `<td>${d[c]||""}</td>`;
         }).join("");
 
-        // Acciones interactivas por módulo
         let btnAccion = "";
-        
-        // 1. Incidencias: Validación/Rechazo del Inquilino
-        if (moduloActual === "Incidencias") {
-          if (d.estado === "Por Validar") {
-            btnAccion = `
-              <div style="display:flex; gap:4px;">
-                <button class="btn btn-sm btn-success" onclick="abrirModalAceptar('${d.incidencia_id}')">✓ Aceptar</button>
-                <button class="btn btn-sm btn-danger" onclick="abrirModalRechazar('${d.incidencia_id}')">✕ Rechazar</button>
-              </div>
-            `;
-          } else if (d.estado === "No Conforme") {
-            btnAccion = `<span style="font-size:11px; color:var(--danger); font-weight:bold;">Reabierta</span>`;
-          } else if (d.estado === "Cerrada") {
-            btnAccion = `<span style="font-size:11px; color:var(--success); font-weight:bold;">✓ Conforme</span>`;
-          } else {
-            btnAccion = `<button class="btn btn-sm" onclick="modalCrud('${d[keyId]}')">✎ Editar</button>`;
-          }
-        }
-        // 2. Pagos: Aprobación por Administración
-        else if (moduloActual === "Pagos") {
+        if (moduloActual === "Rondines") {
+          btnAccion = `<span style="font-size:11px; color:var(--purple); font-weight:bold;">✓ Rondín Grabado</span>`;
+        } else if (moduloActual === "Asistencia" || moduloActual === "Accesos") {
+          btnAccion = `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Auditado</span>`;
+        } else if (moduloActual === "Pagos") {
           const esAdmin = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
           if (esAdmin && d.estado === "Pendiente") {
-            btnAccion = `
-              <div style="display:flex; gap:4px;">
-                <button class="btn btn-sm btn-success" onclick="cambiarEstadoPago('${d.pago_id}', 'Aprobado')">✓ Aprobar</button>
-                <button class="btn btn-sm btn-danger" onclick="cambiarEstadoPago('${d.pago_id}', 'Rechazado')">✕ Rechazar</button>
-              </div>
-            `;
+            btnAccion = `<div style="display:flex; gap:4px;"><button class="btn btn-sm btn-success" onclick="cambiarEstadoPago('${d.pago_id}', 'Aprobado')">✓</button><button class="btn btn-sm btn-danger" onclick="cambiarEstadoPago('${d.pago_id}', 'Rechazado')">✕</button></div>`;
           } else {
-            btnAccion = `<span style="font-size:11px; color:#64748b; font-weight:bold;">${d.estado}</span>`;
+            btnAccion = `<span style="font-size:11px; color:#64748b;">${d.estado}</span>`;
           }
-        }
-        // 3. Paquetería: Confirmación de Entrega
-        else if (moduloActual === "Paqueteria") {
+        } else if (moduloActual === "Paqueteria") {
           if (d.estado !== "Entregado al Inquilino") {
-            btnAccion = `<button class="btn btn-sm btn-success" onclick="confirmarRecibidoPaquete('${d.paquete_id}')">📦 Recibí mi paquete</button>`;
+            btnAccion = `<button class="btn btn-sm btn-success" onclick="confirmarRecibidoPaquete('${d.paquete_id}')">📦 Recibí</button>`;
           } else {
-            btnAccion = `<span style="font-size:11px; color:var(--success); font-weight:bold;">✓ Recibido</span>`;
+            btnAccion = `<span style="font-size:11px; color:var(--success);">✓ Entregado</span>`;
           }
-        }
-        // 4. Modales convencionales
-        else if (moduloActual === "Asistencia" || moduloActual === "Accesos") {
-          btnAccion = `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Auditado</span>`;
+        } else if (moduloActual === "Incidencias" && d.estado === "Por Validar") {
+          btnAccion = `<div style="display:flex; gap:4px;"><button class="btn btn-sm btn-success" onclick="abrirModalAceptar('${d.incidencia_id}')">✓</button><button class="btn btn-sm btn-danger" onclick="abrirModalRechazar('${d.incidencia_id}')">✕</button></div>`;
         } else {
           btnAccion = `<button class="btn btn-sm" onclick="modalCrud('${d[keyId]}')">✎ Editar</button>`;
         }
@@ -922,508 +932,75 @@
       $("tablaBody").innerHTML = tb || "<tr><td colspan='10'>No hay registros disponibles en este módulo.</td></tr>";
     }
 
-    // --- ACCIONES DE INQUILINO: RECHAZO / ACEPTACIÓN DE INCIDENCIA ---
-    function abrirModalRechazar(folio) {
-      folioAccionIncidencia = folio;
-      fotoBase64Rechazo = null;
-      $("lblFolioRechazo").innerText = `Reporte Folio: ${folio}`;
-      $("txtMotivoRechazo").value = "";
-      $("imgPreviewRechazo").style.display = "none";
-      $("lblFotoRechazo").innerText = "Toca para tomar foto de la falla que persiste";
-      $("msgRechazo").innerText = "";
-      $("btnConfirmarRechazo").disabled = false;
-      $("modalRechazarReparacion").classList.remove("oculto");
-    }
+    // --- ACCIONES DE VIGILANTE: RONDINES EN VIDEO ---
+    function abrirModalRegistrarRondin() {
+      videoBase64Rondin = null;
+      ubicacionGPSRondin = { lat: null, lon: null, precision: null };
+      $("rondinTorre").value = "";
+      $("rondinComentario").value = "";
+      $("videoPreviewRondin").style.display = "none";
+      $("lblVideoRondin").innerText = "Toca aquí para grabar video en vivo (15-30 seg)";
+      $("btnEnviarRondin").disabled = true;
+      $("msgRondin").innerText = "";
 
-    async function ejecutarRechazoReparacion() {
-      const motivo = $("txtMotivoRechazo").value.trim();
-      if (!motivo) return alert("Por favor escribe el motivo de no conformidad.");
-
-      const btn = $("btnConfirmarRechazo");
-      btn.disabled = true;
-      btn.innerText = "Enviando evidencia...";
-
-      try {
-        await llamarAPI("rechazarReparacionIncidencia", {
-          folio: folioAccionIncidencia,
-          motivo: motivo,
-          base64: fotoBase64Rechazo
-        });
-        $("modalRechazarReparacion").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-        alert("✓ Notificación de no conformidad enviada correctamente.");
-      } catch (err) {
-        alert("Error al enviar rechazo: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Enviar Rechazo y Evidencia";
-      }
-    }
-
-    function abrirModalAceptar(folio) {
-      folioAccionIncidencia = folio;
-      estrellasSeleccionadas = 5;
-      $("lblFolioAceptado").innerText = `Validar conformidad del Folio: ${folio}`;
-      $("txtComentarioCsat").value = "";
-      seleccionarEstrella(5);
-      $("modalAceptarServicio").classList.remove("oculto");
-    }
-
-    function seleccionarEstrella(num) {
-      estrellasSeleccionadas = num;
-      const estrellas = document.querySelectorAll("#contenedorEstrellas .star");
-      estrellas.forEach((s, idx) => {
-        s.classList.toggle("active", idx < num);
-      });
-    }
-
-    async function ejecutarAceptacionServicio() {
-      const comentario = $("txtComentarioCsat").value.trim() || "Conforme con el trabajo";
-      const btn = $("btnConfirmarAceptacion");
-      btn.disabled = true;
-      btn.innerText = "Cerrando reporte...";
-
-      try {
-        await llamarAPI("calificarServicioIncidencia", {
-          folio: folioAccionIncidencia,
-          estrellas: estrellasSeleccionadas,
-          comentario: comentario
-        });
-        $("modalAceptarServicio").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-        alert("✓ Solución aceptada y reporte cerrado con éxito.");
-      } catch (err) {
-        alert("Error: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Cerrar y Aceptar Trabajo";
-      }
-    }
-
-    // --- ACCIONES DE INQUILINO: COMPROBANTES DE PAGO ---
-    function abrirModalSubirPago() {
-      fotoBase64Pago = null;
-      $("pagoMonto").value = "";
-      $("pagoFecha").value = new Date().toISOString().split("T")[0];
-      $("imgPreviewPago").style.display = "none";
-      $("lblFotoPago").innerText = "Toca para adjuntar comprobante";
-      $("msgPago").innerText = "";
-
-      // Llenar departamentos vinculados al usuario
-      poblarDeptosUsuarioSelector("pagoDeptoSel");
-
-      // Llenar conceptos
-      const selConc = $("pagoConceptoSel");
-      selConc.replaceChildren();
-      (appData.listas.conceptosPago || []).forEach(c => {
-        selConc.innerHTML += `<option value="${c}">${c}</option>`;
+      const selCondo = $("rondinCondominioSel");
+      selCondo.replaceChildren();
+      (appData.condominios || []).forEach(c => {
+        selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`;
       });
 
-      $("modalSubirPago").classList.remove("oculto");
-    }
+      $("modalRegistrarRondin").classList.remove("oculto");
 
-    function poblarDeptosUsuarioSelector(selectorId) {
-      const sel = $(selectorId);
-      sel.replaceChildren();
-
-      // Departamentos asociados al usuario activo
-      const misDeptos = appData.usuario.deptos || [];
-      const todosDeptos = appData.departamentos || [];
-
-      if (misDeptos.length) {
-        misDeptos.forEach(dId => {
-          const dObj = todosDeptos.find(x => x.departamento_id === dId);
-          const etiqueta = dObj ? `${dId} (Torre ${dObj.torre} - Depto ${dObj.numero_departamento})` : dId;
-          sel.innerHTML += `<option value="${dId}">${etiqueta}</option>`;
-        });
-      } else {
-        todosDeptos.forEach(d => {
-          sel.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (${d.condominio_id})</option>`;
-        });
-      }
-    }
-
-    async function ejecutarEnvioPago() {
-      const depto = $("pagoDeptoSel").value;
-      const concepto = $("pagoConceptoSel").value;
-      const monto = $("pagoMonto").value;
-      const fecha = $("pagoFecha").value;
-
-      if (!depto || !monto || !fecha || !fotoBase64Pago) {
-        return alert("Por favor completa el departamento, concepto, monto, fecha y adjunta la foto del comprobante.");
-      }
-
-      const btn = $("btnEnviarPago");
-      btn.disabled = true;
-      btn.innerText = "Subiendo archivo...";
-
-      try {
-        await llamarAPI("subirPagoInquilino", {
-          departamento_id: depto,
-          concepto: concepto,
-          monto: monto,
-          fecha_pago: fecha,
-          base64: fotoBase64Pago
-        });
-        $("modalSubirPago").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-        moduloActual = "Pagos";
-        pintarTabla();
-        alert("✓ Comprobante de pago subido. Queda pendiente de validación por administración.");
-      } catch (err) {
-        alert("Error al subir comprobante: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Enviar Comprobante";
-      }
-    }
-
-    async function cambiarEstadoPago(pagoId, nuevoEstado) {
-      if (!confirm(`¿Deseas marcar este pago como ${nuevoEstado}?`)) return;
-      try {
-        await llamarAPI("validarEstadoPago", { pago_id: pagoId, estado: nuevoEstado });
-        await iniciarApp(usuarioEmuladoActualId);
-      } catch(e) {
-        alert("Error: " + e.message);
-      }
-    }
-
-    // --- ACCIONES DE INQUILINO: PAQUETERÍA ---
-    function abrirModalRegistrarPaquete() {
-      $("paqueteGuia").value = "";
-      $("paqueteDesc").value = "";
-      $("msgPaquete").innerText = "";
-
-      poblarDeptosUsuarioSelector("paqueteDeptoSel");
-
-      const selEmp = $("paqueteEmpresaSel");
-      selEmp.replaceChildren();
-      (appData.listas.empresasPaqueteria || []).forEach(emp => {
-        selEmp.innerHTML += `<option value="${emp}">${emp}</option>`;
-      });
-
-      $("modalRegistrarPaquete").classList.remove("oculto");
-    }
-
-    async function ejecutarEnvioPaquete() {
-      const depto = $("paqueteDeptoSel").value;
-      const empresa = $("paqueteEmpresaSel").value;
-      const guia = $("paqueteGuia").value.trim();
-      const desc = $("paqueteDesc").value.trim();
-
-      if (!depto || !empresa) return alert("Selecciona departamento y empresa de paquetería.");
-
-      const btn = $("btnEnviarPaquete");
-      btn.disabled = true;
-      btn.innerText = "Guardando aviso...";
-
-      try {
-        await llamarAPI("registrarPaquete", {
-          departamento_id: depto,
-          empresa_paqueteria: empresa,
-          numero_guia: guia,
-          descripcion: desc
-        });
-        $("modalRegistrarPaquete").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-        moduloActual = "Paqueteria";
-        pintarTabla();
-        alert("✓ Paquete registrado. Vigilancia/Caseta lo tendrá en lista al recibirlo.");
-      } catch (err) {
-        alert("Error: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Registrar Paquete";
-      }
-    }
-
-    async function confirmarRecibidoPaquete(paqueteId) {
-      if (!confirm("¿Confirmas que ya tienes este paquete en tus manos?")) return;
-      try {
-        await llamarAPI("confirmarEntregaPaquete", { paquete_id: paqueteId });
-        await iniciarApp(usuarioEmuladoActualId);
-      } catch(e) {
-        alert("Error: " + e.message);
-      }
-    }
-
-    // --- GENERADOR INTELIGENTE DE CONTROLES CRUD ---
-    function generarCampoFormulario(columna, valorActual, modulo, esEdicion, registroCompleto) {
-      const col = columna.toLowerCase();
-      const val = valorActual !== undefined && valorActual !== null ? String(valorActual) : "";
-      const listas = (appData && appData.listas) ? appData.listas : {};
-
-      // Inquilino creando reporte: departamento restringido a los suyos
-      if (col === "departamento_id") {
-        let deptos = appData.departamentos || [];
-        if (appData.rolActivo === "residente" && appData.usuario.deptos && appData.usuario.deptos.length) {
-          deptos = deptos.filter(d => appData.usuario.deptos.includes(d.departamento_id));
-        }
-        let opciones = `<option value="">-- Seleccionar Departamento --</option>`;
-        opciones += deptos.map(d => `<option value="${d.departamento_id}" ${val === d.departamento_id ? "selected" : ""}>${d.departamento_id} (Torre ${d.torre || '-'} - Depto ${d.numero_departamento || '-'})</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      if ((modulo === "Privilegios" || modulo === "Membresias") && esEdicion) {
-        if (col === "usuario_id") {
-          return `<input type="text" value="${obtenerNombreUsuario(val)} (${val})" readonly style="background:#f1f5f9; cursor:not-allowed;"><input type="hidden" id="f_${columna}" value="${val}">`;
-        }
-        if (col === "condominio_id") {
-          return `<input type="text" value="${obtenerNombreCondo(val)} (${val})" readonly style="background:#f1f5f9; cursor:not-allowed;"><input type="hidden" id="f_${columna}" value="${val}">`;
-        }
-      }
-
-      if (col === "rol") {
-        const roles = listas.roles || [];
-        const opciones = roles.map(r => `<option value="${r.id}" ${val.toLowerCase() === r.id.toLowerCase() ? "selected" : ""}>${r.nombre}</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      if (col === "estado") {
-        const estados = (modulo === "Incidencias") ? (listas.estadosIncidencia || []) : (listas.estadosGenerales || ["Activo", "Inactivo"]);
-        const opciones = estados.map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e}</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      if (col === "categoria") {
-        const cats = listas.categorias || [];
-        const opciones = cats.map(cat => `<option value="${cat}" ${val === cat ? "selected" : ""}>${cat}</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      if (col === "prioridad") {
-        const prios = listas.prioridades || ["Baja", "Media", "Alta", "Urgente"];
-        const opciones = prios.map(p => `<option value="${p}" ${val === p ? "selected" : ""}>${p}</option>`).join("");
-        return `<select id="f_${columna}">${opciones}</select>`;
-      }
-
-      if (col === "condominio_id" && modulo !== "Condominios") {
-        const condos = appData.condominios || [];
-        const opciones = condos.map(c => `<option value="${c.condominio_id}" ${val === c.condominio_id ? "selected" : ""}>${c.nombre} (${c.condominio_id})</option>`).join("");
-        return `<select id="f_${columna}">${opciones || '<option value="">Sin condominios</option>'}</select>`;
-      }
-
-      if (col === "descripcion" || col === "motivo_rechazo") {
-        return `<textarea id="f_${columna}" rows="3">${val}</textarea>`;
-      }
-
-      const esLlavePrimaria = (modulo === "Condominios" && col === "condominio_id") ||
-                              (modulo === "Usuarios" && col === "usuario_id") ||
-                              (modulo === "Departamentos" && col === "departamento_id") ||
-                              ((modulo === "Privilegios" || modulo === "Membresias") && col === "membresia_id") ||
-                              (modulo === "Incidencias" && col === "incidencia_id");
-
-      if (esLlavePrimaria && val) {
-        return `<input type="text" id="f_${columna}" value="${val}" readonly style="background:#f1f5f9; cursor:not-allowed;">`;
-      }
-
-      return `<input type="text" id="f_${columna}" value="${val}">`;
-    }
-
-    // --- FORMULARIO CRUD UNIVERSAL ---
-    function modalCrud(idEdit = null) {
-      editandoId = idEdit;
-      const nombreModulo = (moduloActual === "Privilegios") ? "Privilegio" : 
-                           (moduloActual === "Incidencias") ? "Reporte de Falla" : moduloActual;
-      $("modalTit").innerText = idEdit ? `Editar ${nombreModulo}` : `Nuevo ${nombreModulo}`;
-      
-      const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
-      $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
-      
-      const form = $("modalForm");
-      form.innerHTML = "";
-      
-      const clave = moduloActual === "Privilegios" ? "membresias" : moduloActual.toLowerCase();
-      const datos = appData[clave] || appData[clave + 's'] || [];
-      const keyId = (moduloActual === "Usuarios") ? "usuario_id" : 
-                    (moduloActual === "Privilegios" || moduloActual === "Membresias") ? "membresia_id" : 
-                    (moduloActual === "Asistencia") ? "asistencia_id" :
-                    moduloActual.slice(0,-1).toLowerCase() + "_id";
-      
-      let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
-      let colsForm = colsVisibles[moduloActual] || [];
-
-      // Si es un inquilino creando reporte nuevo, ocultar campos administrativos
-      if (moduloActual === "Incidencias" && !idEdit && appData.rolActivo === "residente") {
-        colsForm = ["departamento_id", "categoria", "descripcion", "prioridad"];
-      }
-
-      if (moduloActual === "Condominios") {
-        $("asistenteGpsCondominio").classList.remove("oculto");
-        $("msgGpsAuto").innerText = "";
-      } else {
-        $("asistenteGpsCondominio").classList.add("oculto");
-      }
-
-      colsForm.forEach(c => {
-        form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
-        let val = reg[c] !== undefined ? reg[c] : "";
-        form.innerHTML += generarCampoFormulario(c, val, moduloActual, !!idEdit, reg);
-      });
-
-      $("modal").classList.remove("oculto");
-    }
-
-    function autocompletarCoordenadasCondo() {
-      const msg = $("msgGpsAuto");
-      msg.innerText = "Consultando GPS...";
+      // Verificación de coordenadas GPS para el rondín
       navigator.geolocation.getCurrentPosition(
         pos => {
-          $("f_latitud").value = pos.coords.latitude.toFixed(6);
-          $("f_longitud").value = pos.coords.longitude.toFixed(6);
-          if(!$("f_radio_tolerancia_mts").value) $("f_radio_tolerancia_mts").value = "150";
-          msg.innerText = "✓ Coordenadas fijadas.";
+          ubicacionGPSRondin.lat = pos.coords.latitude;
+          ubicacionGPSRondin.lon = pos.coords.longitude;
+          ubicacionGPSRondin.precision = Math.round(pos.coords.accuracy);
+          $("geoEstadoRondin").innerHTML = `📍 <strong>Ubicación fijada:</strong> Lat: ${ubicacionGPSRondin.lat.toFixed(5)}, Lon: ${ubicacionGPSRondin.lon.toFixed(5)} (±${ubicacionGPSRondin.precision}m)`;
+          if (videoBase64Rondin) $("btnEnviarRondin").disabled = false;
         },
-        err => { msg.innerText = "Error GPS: " + err.message; },
-        { enableHighAccuracy: true, timeout: 10000 }
+        err => { $("geoEstadoRondin").innerHTML = `<span style="color:red;">❌ Activa el GPS para validar la ubicación del rondín.</span>`; },
+        { enableHighAccuracy: true, timeout: 12000 }
       );
     }
 
-    async function guardarRegistro() {
-      const btnG = $("btnGuardar");
-      btnG.disabled = true;
-      btnG.innerText = "Guardando...";
+    async function ejecutarEnvioRondin() {
+      const condoId = $("rondinCondominioSel").value;
+      const torre = $("rondinTorre").value.trim() || "Torre Principal";
+      const comentario = $("rondinComentario").value.trim();
 
-      let datosSend = {};
-      const controles = $("modalForm").querySelectorAll("input, select, textarea");
-      controles.forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
-
-      // Si inquilino crea falla, asignar su condominio del departamento seleccionado
-      if (moduloActual === "Incidencias" && !editandoId && datosSend.departamento_id) {
-        const deptoObj = (appData.departamentos || []).find(d => d.departamento_id === datosSend.departamento_id);
-        if (deptoObj) datosSend.condominio_id = deptoObj.condominio_id;
+      if (!condoId || !videoBase64Rondin || ubicacionGPSRondin.lat === null) {
+        return alert("Por favor graba el video en tiempo real y asegúrate de contar con señal GPS.");
       }
 
-      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
-      const keyId = (tabla === "Usuarios") ? "usuario_id" : 
-                    (tabla === "Membresias") ? "membresia_id" : 
-                    tabla.slice(0,-1).toLowerCase() + "_id";
-
-      try {
-        await llamarAPI("guardarRegistro", {
-          tablaNombre: tabla,
-          datos: datosSend,
-          idColumna: keyId,
-          idValor: editandoId
-        });
-        $("modal").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-      } catch (err) {
-        alert("Error al guardar: " + err.message);
-      } finally {
-        btnG.disabled = false;
-        btnG.innerText = "Guardar";
-      }
-    }
-
-    async function borrarRegistro() {
-      if(!confirm("¿Deseas dar de baja este registro?")) return;
-      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
-      const keyId = (tabla === "Usuarios") ? "usuario_id" : 
-                    (tabla === "Membresias") ? "membresia_id" : 
-                    tabla.slice(0,-1).toLowerCase() + "_id";
-
-      try {
-        await llamarAPI("eliminarRegistro", {
-          tablaNombre: tabla,
-          idColumna: keyId,
-          idValor: editandoId
-        });
-        $("modal").classList.add("oculto");
-        await iniciarApp(usuarioEmuladoActualId);
-      } catch (err) {
-        alert("Error al eliminar: " + err.message);
-      }
-    }
-
-    // --- ALTA DE USUARIOS ---
-    function abrirModalAltaUsuario() {
-      $("nuevoEmail").value = "";
-      $("nuevoNombre").value = "";
-      $("msgAltaUsuario").innerText = "";
-      $("cajaNombreNuevo").style.display = "block";
-
-      const dl = $("listaCorreosExistentes");
-      dl.replaceChildren();
-      (appData.usuarios || []).forEach(u => { dl.innerHTML += `<option value="${u.email}">${u.nombre}</option>`; });
-
-      const selCondo = $("nuevoCondominio");
-      selCondo.replaceChildren();
-      (appData.condominios || []).forEach(c => { selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`; });
-
-      const selRol = $("nuevoRol");
-      selRol.replaceChildren();
-      (appData.listas.roles || []).forEach(r => { selRol.innerHTML += `<option value="${r.id}">${r.nombre}</option>`; });
-
-      const selEsp = $("nuevaEspecialidad");
-      selEsp.replaceChildren();
-      (appData.listas.especialidades || []).forEach(e => { selEsp.innerHTML += `<option value="${e}">${e}</option>`; });
-
-      actualizarDeptosAlta();
-      selCondo.onchange = actualizarDeptosAlta;
-      toggleRolCampos(selRol.value);
-
-      $("modalAltaUsuario").classList.remove("oculto");
-    }
-
-    function verificarSiExisteUsuario(email) {
-      email = String(email || "").trim().toLowerCase();
-      const u = (appData.usuarios || []).find(x => x.email.toLowerCase() === email);
-      if (u) {
-        $("nuevoNombre").value = u.nombre;
-        $("cajaNombreNuevo").style.display = "none";
-      } else {
-        $("cajaNombreNuevo").style.display = "block";
-      }
-    }
-
-    function toggleRolCampos(rol) {
-      $("cajaEspecialidad").classList.toggle("oculto", rol !== "tecnico");
-      $("cajaDeptoAsignado").classList.toggle("oculto", rol !== "residente");
-    }
-
-    function actualizarDeptosAlta() {
-      const condoId = $("nuevoCondominio").value;
-      const selDepto = $("nuevoDepto");
-      selDepto.replaceChildren();
-      const deptos = (appData.departamentos || []).filter(d => d.condominio_id === condoId && d.estado !== "Inactivo");
-      deptos.forEach(d => {
-        selDepto.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (Torre ${d.torre} - Depto ${d.numero_departamento})</option>`;
-      });
-      if (!deptos.length) selDepto.innerHTML = `<option value="">Sin departamentos</option>`;
-    }
-
-    async function ejecutarAltaUsuario() {
-      const email = $("nuevoEmail").value.trim();
-      const nombre = $("nuevoNombre").value.trim();
-      const condominio_id = $("nuevoCondominio").value;
-      const rol = $("nuevoRol").value;
-      const especialidad = rol === "tecnico" ? $("nuevaEspecialidad").value : "";
-      const departamento_id = rol === "residente" ? $("nuevoDepto").value : "";
-
-      if (!email || !condominio_id || !rol) return alert("Completa los campos obligatorios.");
-
-      const btn = $("btnCrearUsuarioCompleto");
+      const btn = $("btnEnviarRondin");
       btn.disabled = true;
-      btn.innerText = "Guardando...";
+      btn.innerText = "Subiendo video y validando geocerca...";
 
       try {
-        const r = await llamarAPI("altaUsuarioConAcceso", {
-          nombre: nombre, email: email, condominio_id: condominio_id, rol: rol,
-          especialidad: especialidad, departamento_id: departamento_id
+        const r = await llamarAPI("registrarRondinVideo", {
+          condominio_id: condoId,
+          torre: torre,
+          comentario: comentario,
+          latitud: ubicacionGPSRondin.lat,
+          longitud: ubicacionGPSRondin.lon,
+          base64: videoBase64Rondin,
+          mimeType: "video/mp4"
         });
-        $("modalAltaUsuario").classList.add("oculto");
+        $("modalRegistrarRondin").classList.add("oculto");
+        moduloActual = "Rondines";
         await iniciarApp(usuarioEmuladoActualId);
         alert(r.mensaje);
       } catch (err) {
-        alert(err.message);
+        alert("Error al registrar rondín: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerText = "Guardar";
+        btn.innerText = "Subir y Validar Rondín";
       }
     }
 
-    // --- RELOJ CHECADOR ---
+    // --- ACCIONES DE ASISTENCIA Y DEMÁS MÓDULOS ---
     function abrirModalChecador() {
       fotoBase64Capturada = null;
       ubicacionGPS = { lat: null, lon: null, precision: null };
@@ -1460,20 +1037,18 @@
     }
 
     async function enviarRegistroAsistencia() {
-      const payload = {
-        condominio_id: $("checadorCondominio").value,
-        tipo_registro: $("selEventoTurno").value,
-        latitud: ubicacionGPS.lat,
-        longitud: ubicacionGPS.lon,
-        base64: fotoBase64Capturada
-      };
-
       const btn = $("btnGuardarChecada");
       btn.disabled = true;
-      btn.innerText = "Guardando marcaje...";
+      btn.innerText = "Guardando...";
 
       try {
-        const r = await llamarAPI("registrarChecadaAsistencia", payload);
+        const r = await llamarAPI("registrarChecadaAsistencia", {
+          condominio_id: $("checadorCondominio").value,
+          tipo_registro: $("selEventoTurno").value,
+          latitud: ubicacionGPS.lat,
+          longitud: ubicacionGPS.lon,
+          base64: fotoBase64Capturada
+        });
         $("modalChecador").classList.add("oculto");
         moduloActual = "Asistencia";
         await iniciarApp(usuarioEmuladoActualId);
@@ -1486,7 +1061,276 @@
       }
     }
 
-    // Inicialización del sistema
+    // --- SUBIR PAGO ---
+    function abrirModalSubirPago() {
+      fotoBase64Pago = null;
+      $("pagoMonto").value = "";
+      $("pagoFecha").value = new Date().toISOString().split("T")[0];
+      $("imgPreviewPago").style.display = "none";
+      $("lblFotoPago").innerText = "Toca para adjuntar comprobante";
+      poblarDeptosUsuarioSelector("pagoDeptoSel");
+
+      const selConc = $("pagoConceptoSel");
+      selConc.replaceChildren();
+      (appData.listas.conceptosPago || []).forEach(c => { selConc.innerHTML += `<option value="${c}">${c}</option>`; });
+      $("modalSubirPago").classList.remove("oculto");
+    }
+
+    function poblarDeptosUsuarioSelector(selectorId) {
+      const sel = $(selectorId);
+      sel.replaceChildren();
+      const misDeptos = appData.usuario.deptos || [];
+      const todosDeptos = appData.departamentos || [];
+      if (misDeptos.length) {
+        misDeptos.forEach(dId => {
+          const dObj = todosDeptos.find(x => x.departamento_id === dId);
+          sel.innerHTML += `<option value="${dId}">${dId} (Torre ${dObj ? dObj.torre : '-'} - Depto ${dObj ? dObj.numero_departamento : '-'})</option>`;
+        });
+      } else {
+        todosDeptos.forEach(d => { sel.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (${d.condominio_id})</option>`; });
+      }
+    }
+
+    async function ejecutarEnvioPago() {
+      if (!$("pagoDeptoSel").value || !$("pagoMonto").value || !fotoBase64Pago) return alert("Completa los datos y adjunta la foto.");
+      const btn = $("btnEnviarPago");
+      btn.disabled = true;
+      btn.innerText = "Subiendo...";
+      try {
+        await llamarAPI("subirPagoInquilino", {
+          departamento_id: $("pagoDeptoSel").value, concepto: $("pagoConceptoSel").value,
+          monto: $("pagoMonto").value, fecha_pago: $("pagoFecha").value, base64: fotoBase64Pago
+        });
+        $("modalSubirPago").classList.add("oculto");
+        moduloActual = "Pagos";
+        await iniciarApp(usuarioEmuladoActualId);
+        alert("✓ Comprobante enviado para validación.");
+      } catch (e) { alert(e.message); } finally { btn.disabled = false; btn.innerText = "Enviar Comprobante"; }
+    }
+
+    async function cambiarEstadoPago(id, est) {
+      if (!confirm(`¿Marcar pago como ${est}?`)) return;
+      await llamarAPI("validarEstadoPago", { pago_id: id, estado: est });
+      await iniciarApp(usuarioEmuladoActualId);
+    }
+
+    // --- PAQUETERÍA ---
+    function abrirModalRegistrarPaquete() {
+      $("paqueteGuia").value = ""; $("paqueteDesc").value = "";
+      poblarDeptosUsuarioSelector("paqueteDeptoSel");
+      const selEmp = $("paqueteEmpresaSel");
+      selEmp.replaceChildren();
+      (appData.listas.empresasPaqueteria || []).forEach(emp => { selEmp.innerHTML += `<option value="${emp}">${emp}</option>`; });
+      $("modalRegistrarPaquete").classList.remove("oculto");
+    }
+
+    async function ejecutarEnvioPaquete() {
+      const btn = $("btnEnviarPaquete");
+      btn.disabled = true;
+      try {
+        await llamarAPI("registrarPaquete", {
+          departamento_id: $("paqueteDeptoSel").value, empresa_paqueteria: $("paqueteEmpresaSel").value,
+          numero_guia: $("paqueteGuia").value.trim(), descripcion: $("paqueteDesc").value.trim()
+        });
+        $("modalRegistrarPaquete").classList.add("oculto");
+        moduloActual = "Paqueteria";
+        await iniciarApp(usuarioEmuladoActualId);
+        alert("✓ Paquete registrado en caseta.");
+      } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+    }
+
+    async function confirmarRecibidoPaquete(id) {
+      if (!confirm("¿Confirmas que ya recibiste este paquete?")) return;
+      await llamarAPI("confirmarEntregaPaquete", { paquete_id: id });
+      await iniciarApp(usuarioEmuladoActualId);
+    }
+
+    // --- RECHAZO / ACEPTACIÓN INCIDENCIAS ---
+    function abrirModalRechazar(folio) {
+      folioAccionIncidencia = folio;
+      fotoBase64Rechazo = null;
+      $("lblFolioRechazo").innerText = `Folio: ${folio}`;
+      $("txtMotivoRechazo").value = "";
+      $("imgPreviewRechazo").style.display = "none";
+      $("modalRechazarReparacion").classList.remove("oculto");
+    }
+
+    async function ejecutarRechazoReparacion() {
+      if (!$("txtMotivoRechazo").value.trim()) return alert("Escribe el motivo del rechazo.");
+      const btn = $("btnConfirmarRechazo");
+      btn.disabled = true;
+      try {
+        await llamarAPI("rechazarReparacionIncidencia", {
+          folio: folioAccionIncidencia, motivo: $("txtMotivoRechazo").value.trim(), base64: fotoBase64Rechazo
+        });
+        $("modalRechazarReparacion").classList.add("oculto");
+        await iniciarApp(usuarioEmuladoActualId);
+        alert("✓ Reporte marcado como No Conforme.");
+      } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+    }
+
+    function abrirModalAceptar(folio) {
+      folioAccionIncidencia = folio;
+      estrellasSeleccionadas = 5;
+      $("lblFolioAceptado").innerText = `Folio: ${folio}`;
+      $("txtComentarioCsat").value = "";
+      seleccionarEstrella(5);
+      $("modalAceptarServicio").classList.remove("oculto");
+    }
+
+    function seleccionarEstrella(num) {
+      estrellasSeleccionadas = num;
+      document.querySelectorAll("#contenedorEstrellas .star").forEach((s, idx) => s.classList.toggle("active", idx < num));
+    }
+
+    async function ejecutarAceptacionServicio() {
+      const btn = $("btnConfirmarAceptacion");
+      btn.disabled = true;
+      try {
+        await llamarAPI("calificarServicioIncidencia", {
+          folio: folioAccionIncidencia, estrellas: estrellasSeleccionadas, comentario: $("txtComentarioCsat").value.trim()
+        });
+        $("modalAceptarServicio").classList.add("oculto");
+        await iniciarApp(usuarioEmuladoActualId);
+        alert("✓ Reporte cerrado satisfactoriamente.");
+      } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+    }
+
+    // --- CRUD Y ALTA ---
+    function modalCrud(idEdit = null) {
+      editandoId = idEdit;
+      $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
+      const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
+      $("btnBorrar").classList.toggle("oculto", !idEdit || !puedeEditar);
+      
+      const form = $("modalForm");
+      form.innerHTML = "";
+      const clave = moduloActual === "Privilegios" ? "membresias" : moduloActual.toLowerCase();
+      const datos = appData[clave] || appData[clave + 's'] || [];
+      const keyId = (moduloActual === "Usuarios") ? "usuario_id" : (moduloActual === "Privilegios") ? "membresia_id" : moduloActual.slice(0,-1).toLowerCase() + "_id";
+      let reg = idEdit ? datos.find(d => d[keyId] === idEdit) : {};
+      let cols = colsVisibles[moduloActual] || [];
+
+      if (moduloActual === "Incidencias" && !idEdit && appData.rolActivo === "residente") {
+        cols = ["departamento_id", "categoria", "descripcion", "prioridad"];
+      }
+
+      cols.forEach(c => {
+        form.innerHTML += `<label style="font-size:11px; font-weight:bold;">${c.toUpperCase()}</label>`;
+        let val = reg[c] !== undefined ? reg[c] : "";
+        if (c === "departamento_id") {
+          let deptos = appData.departamentos || [];
+          if (appData.rolActivo === "residente" && appData.usuario.deptos && appData.usuario.deptos.length) {
+            deptos = deptos.filter(d => appData.usuario.deptos.includes(d.departamento_id));
+          }
+          let op = deptos.map(d => `<option value="${d.departamento_id}" ${val === d.departamento_id ? "selected" : ""}>${d.departamento_id} (Torre ${d.torre || '-'} - Depto ${d.numero_departamento || '-'})</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "condominio_id" && moduloActual !== "Condominios") {
+          let op = (appData.condominios || []).map(cd => `<option value="${cd.condominio_id}" ${val === cd.condominio_id ? "selected" : ""}>${cd.nombre}</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "rol") {
+          let op = (appData.listas.roles || []).map(r => `<option value="${r.id}" ${val === r.id ? "selected" : ""}>${r.nombre}</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "estado") {
+          let op = (moduloActual === "Incidencias" ? appData.listas.estadosIncidencia : appData.listas.estadosGenerales || ["Activo", "Inactivo"]).map(e => `<option value="${e}" ${val === e ? "selected" : ""}>${e}</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "categoria") {
+          let op = (appData.listas.categorias || []).map(cat => `<option value="${cat}" ${val === cat ? "selected" : ""}>${cat}</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "prioridad") {
+          let op = (appData.listas.prioridades || ["Baja", "Media", "Alta", "Urgente"]).map(p => `<option value="${p}" ${val === p ? "selected" : ""}>${p}</option>`).join("");
+          form.innerHTML += `<select id="f_${c}">${op}</select>`;
+        } else if (c === "descripcion") {
+          form.innerHTML += `<textarea id="f_${c}" rows="3">${val}</textarea>`;
+        } else {
+          form.innerHTML += `<input type="text" id="f_${c}" value="${val}">`;
+        }
+      });
+      $("modal").classList.remove("oculto");
+    }
+
+    async function guardarRegistro() {
+      const btnG = $("btnGuardar");
+      btnG.disabled = true;
+      let datosSend = {};
+      $("modalForm").querySelectorAll("input, select, textarea").forEach(i => { datosSend[i.id.replace("f_", "")] = i.value; });
+
+      if (moduloActual === "Incidencias" && !editandoId && datosSend.departamento_id) {
+        const dObj = (appData.departamentos || []).find(d => d.departamento_id === datosSend.departamento_id);
+        if (dObj) datosSend.condominio_id = dObj.condominio_id;
+      }
+
+      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
+      const keyId = (tabla === "Usuarios") ? "usuario_id" : (tabla === "Membresias") ? "membresia_id" : tabla.slice(0,-1).toLowerCase() + "_id";
+
+      try {
+        await llamarAPI("guardarRegistro", { tablaNombre: tabla, datos: datosSend, idColumna: keyId, idValor: editandoId });
+        $("modal").classList.add("oculto");
+        await iniciarApp(usuarioEmuladoActualId);
+      } catch (e) { alert(e.message); } finally { btnG.disabled = false; }
+    }
+
+    async function borrarRegistro() {
+      if (!confirm("¿Desactivar registro?")) return;
+      const tabla = moduloActual === "Privilegios" ? "Membresias" : moduloActual;
+      const keyId = (tabla === "Usuarios") ? "usuario_id" : (tabla === "Membresias") ? "membresia_id" : tabla.slice(0,-1).toLowerCase() + "_id";
+      await llamarAPI("eliminarRegistro", { tablaNombre: tabla, idColumna: keyId, idValor: editandoId });
+      $("modal").classList.add("oculto");
+      await iniciarApp(usuarioEmuladoActualId);
+    }
+
+    function abrirModalAltaUsuario() {
+      $("nuevoEmail").value = ""; $("nuevoNombre").value = ""; $("msgAltaUsuario").innerText = "";
+      const dl = $("listaCorreosExistentes"); dl.replaceChildren();
+      (appData.usuarios || []).forEach(u => { dl.innerHTML += `<option value="${u.email}">${u.nombre}</option>`; });
+
+      const selCondo = $("nuevoCondominio"); selCondo.replaceChildren();
+      (appData.condominios || []).forEach(c => { selCondo.innerHTML += `<option value="${c.condominio_id}">${c.nombre}</option>`; });
+
+      const selRol = $("nuevoRol"); selRol.replaceChildren();
+      (appData.listas.roles || []).forEach(r => { selRol.innerHTML += `<option value="${r.id}">${r.nombre}</option>`; });
+
+      const selEsp = $("nuevaEspecialidad"); selEsp.replaceChildren();
+      (appData.listas.especialidades || []).forEach(e => { selEsp.innerHTML += `<option value="${e}">${e}</option>`; });
+
+      actualizarDeptosAlta();
+      selCondo.onchange = actualizarDeptosAlta;
+      toggleRolCampos(selRol.value);
+      $("modalAltaUsuario").classList.remove("oculto");
+    }
+
+    function verificarSiExisteUsuario(email) {
+      const u = (appData.usuarios || []).find(x => x.email.toLowerCase() === String(email).trim().toLowerCase());
+      if (u) { $("nuevoNombre").value = u.nombre; $("cajaNombreNuevo").style.display = "none"; }
+      else { $("cajaNombreNuevo").style.display = "block"; }
+    }
+
+    function toggleRolCampos(rol) {
+      $("cajaEspecialidad").classList.toggle("oculto", rol !== "tecnico" && rol !== "vigilante");
+      $("cajaDeptoAsignado").classList.toggle("oculto", rol !== "residente");
+    }
+
+    function actualizarDeptosAlta() {
+      const selDepto = $("nuevoDepto"); selDepto.replaceChildren();
+      const deptos = (appData.departamentos || []).filter(d => d.condominio_id === $("nuevoCondominio").value && d.estado !== "Inactivo");
+      deptos.forEach(d => { selDepto.innerHTML += `<option value="${d.departamento_id}">${d.departamento_id} (Torre ${d.torre} - Depto ${d.numero_departamento})</option>`; });
+      if (!deptos.length) selDepto.innerHTML = `<option value="">Sin departamentos</option>`;
+    }
+
+    async function ejecutarAltaUsuario() {
+      const btn = $("btnCrearUsuarioCompleto"); btn.disabled = true;
+      try {
+        const r = await llamarAPI("altaUsuarioConAcceso", {
+          nombre: $("nuevoNombre").value.trim(), email: $("nuevoEmail").value.trim(),
+          condominio_id: $("nuevoCondominio").value, rol: $("nuevoRol").value,
+          especialidad: $("nuevaEspecialidad").value, departamento_id: $("nuevoDepto").value
+        });
+        $("modalAltaUsuario").classList.add("oculto");
+        await iniciarApp(usuarioEmuladoActualId);
+        alert(r.mensaje);
+      } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+    }
+
     revisarSoporteBiometrico();
     if(sessionStorage.getItem("tok")) iniciarApp();
   </script>
