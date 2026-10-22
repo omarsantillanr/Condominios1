@@ -86,6 +86,26 @@
     .star { color: #cbd5e1; transition: color 0.2s; }
     .star.active { color: #eab308; }
 
+    /* Estilos del Visor Lightbox */
+    #modalLightbox {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.92); z-index: 2500;
+      display: flex; justify-content: center; align-items: center; padding: 12px;
+    }
+    .lightbox-card {
+      position: relative; max-width: 900px; width: 100%; max-height: 92vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .lightbox-header {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; color: #fff;
+    }
+    .lightbox-body {
+      width: 100%; height: 75vh; max-height: 75vh; display: flex; align-items: center;
+      justify-content: center; background: #000; border-radius: 8px; overflow: hidden;
+      border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
     @media (max-width: 768px) {
       .btn-menu-toggle { display: block; }
       .sidebar { position: fixed; top: 0; left: 0; height: 100%; transform: translateX(-100%); }
@@ -98,10 +118,25 @@
       .modal { padding: 16px; max-height: 95vh; }
       .modal-actions { flex-direction: column-reverse; }
       .modal-actions .btn { width: 100%; }
+      .lightbox-body { height: 65vh; }
     }
   </style>
 </head>
 <body>
+
+  <!-- VISOR LIGHTBOX PARA FOTOS Y VIDEOS -->
+  <div id="modalLightbox" class="oculto" onclick="clickFondoLightbox(event)">
+    <div class="lightbox-card">
+      <div class="lightbox-header">
+        <span id="lightboxTitulo" style="font-size:14px; font-weight:bold;">Visualizador de Evidencia</span>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <a id="lightboxLinkExterno" href="#" target="_blank" style="color:#60a5fa; font-size:12px; text-decoration:none;">↗ Abrir pestaña</a>
+          <button onclick="cerrarLightbox()" style="background:none; border:none; color:#fff; font-size:26px; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+      </div>
+      <div id="lightboxContenido" class="lightbox-body"></div>
+    </div>
+  </div>
 
   <!-- BANNER MODO SOPORTE -->
   <div id="bannerSoporte" class="oculto">
@@ -176,7 +211,7 @@
         <div class="nav-item" onclick="abrirModulo('Paqueteria', this)">📦 Paquetería y Envíos</div>
       </div>
 
-      <!-- Menú Vigilancia / Seguridad -->
+      <!-- Menú Exclusivo Vigilancia / Seguridad -->
       <div id="menuVigilante" class="oculto">
         <div class="nav-group">Seguridad de Torre</div>
         <div class="nav-item activo" onclick="abrirModulo('Asistencia', this)">⏱️ Asistencia a Torre</div>
@@ -231,7 +266,7 @@
     </div>
   </div>
 
-  <!-- MODAL: REGISTRAR RONDÍN EN VIDEO EN TIEMPO REAL -->
+  <!-- MODAL: REGISTRAR RONDÍN EN VIDEO -->
   <div id="modalRegistrarRondin" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
@@ -245,7 +280,7 @@
       <label style="font-size:11px; font-weight:bold;">Torre / Área Patrullada:</label>
       <input type="text" id="rondinTorre" placeholder="Ej. Torre A - Planta Baja / Estacionamiento">
 
-      <label style="font-size:11px; font-weight:bold;">Video en Tiempo Real (Cámara frontal o trasera):</label>
+      <label style="font-size:11px; font-weight:bold;">Video en Tiempo Real:</label>
       <input type="file" id="inputVideoRondin" accept="video/*" capture="environment" class="oculto" onchange="procesarVideoRondin(this)">
       
       <div class="camera-trigger-box" onclick="$('inputVideoRondin').click()" style="border-color:var(--purple); background:#faf5ff;">
@@ -270,7 +305,7 @@
     </div>
   </div>
 
-  <!-- MODAL: RELOJ CHECADOR (ASISTENCIA) -->
+  <!-- MODAL: RELOJ CHECADOR -->
   <div id="modalChecador" class="modal-overlay oculto">
     <div class="modal">
       <div class="modal-header">
@@ -497,7 +532,55 @@
     let columnaOrdenada = null;
     let ordenAscendente = true;
 
-    // --- PROCESAMIENTO DE FOTOS Y VIDEOS EN TIEMPO REAL ---
+    // --- VISOR LIGHTBOX INTELIGENTE ---
+    function abrirLightbox(url, tipo = 'auto', titulo = 'Evidencia Multimedia') {
+      if (!url) return alert("No hay archivo multimedia disponible.");
+      
+      $("lightboxTitulo").innerText = titulo;
+      $("lightboxLinkExterno").href = url;
+      const container = $("lightboxContenido");
+      container.innerHTML = `<div style="color:#94a3b8; font-size:13px;">Cargando multimedia...</div>`;
+      $("modalLightbox").classList.remove("oculto");
+
+      // Detección de enlace de Google Drive para incrustar preview nativo
+      const matchDrive = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+      if (matchDrive && matchDrive[1]) {
+        const driveId = matchDrive[1];
+        container.innerHTML = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" style="width:100%; height:100%; border:none;" allow="autoplay" allowfullscreen></iframe>`;
+        return;
+      }
+
+      // Si es imagen directa o base64
+      if (url.startsWith("data:image") || url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || tipo === 'imagen') {
+        container.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" alt="Evidencia">`;
+        return;
+      }
+
+      // Si es video directo o base64
+      if (url.startsWith("data:video") || url.match(/\.(mp4|webm|ogg|mov)($|\?)/i) || tipo === 'video') {
+        container.innerHTML = `<video src="${url}" controls autoplay playsinline style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;"></video>`;
+        return;
+      }
+
+      // Fallback a iframe genérico
+      container.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`;
+    }
+
+    function cerrarLightbox() {
+      const container = $("lightboxContenido");
+      container.innerHTML = ""; // Detiene videos e iframes en reproducción
+      $("modalLightbox").classList.add("oculto");
+    }
+
+    function clickFondoLightbox(e) {
+      if (e.target.id === "modalLightbox") cerrarLightbox();
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") cerrarLightbox();
+    });
+
+    // --- PROCESAMIENTO DE FOTOS Y VIDEOS ---
     function procesarFotoArchivo(input, previewId, labelId) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
@@ -542,7 +625,6 @@
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
 
-      // Verificación de tamaño máximo para no exceder límite de carga (25 MB)
       if (file.size > 25 * 1024 * 1024) {
         alert("El video es demasiado largo. Graba un recorrido breve de 15 a 30 segundos.");
         return;
@@ -752,26 +834,36 @@
       const deptoTexto = (user.deptos && user.deptos.length) ? ` | Deptos: ${user.deptos.join(", ")}` : '';
       $("userBadge").innerHTML = `<strong>${user.nombre}</strong> (${rol.toUpperCase()}${deptoTexto})`;
 
+      const esAdminOsuper = (rol === "superadmin" || rol === "administracion");
+      const esVigilante = (rol === "vigilante");
+
       // Menús laterales según perfil
-      $("menuAdmin").classList.toggle("oculto", rol !== "superadmin" && rol !== "administracion");
-      $("menuVigilante").classList.toggle("oculto", rol !== "vigilante");
+      $("menuAdmin").classList.toggle("oculto", !esAdminOsuper);
+      $("menuVigilante").classList.toggle("oculto", !esVigilante);
       $("menuOperativo").classList.toggle("oculto", rol !== "tecnico");
       $("menuResidente").classList.toggle("oculto", rol !== "residente");
 
-      // Botones según rol
-      $("btnAltaUsuario").classList.toggle("oculto", rol !== "superadmin" && rol !== "administracion");
-      $("btnRelojTop").classList.toggle("oculto", rol !== "vigilante" && rol !== "tecnico" && rol !== "superadmin" && rol !== "administracion");
-      $("btnRegistrarRondin").classList.toggle("oculto", rol !== "vigilante" && rol !== "superadmin" && rol !== "administracion");
+      // El vigilante NUNCA debe ver los botones de administración, residente ni CRUD
+      $("btnAltaUsuario").classList.toggle("oculto", !esAdminOsuper);
+      $("btnNuevo").classList.toggle("oculto", esVigilante);
       $("btnSubirPago").classList.toggle("oculto", rol !== "residente");
-      $("btnRegistrarPaquete").classList.toggle("oculto", rol !== "residente" && rol !== "administracion" && rol !== "superadmin");
-      $("btnNuevo").classList.toggle("oculto", rol === "vigilante"); // Vigilante no usa CRUD de reportes
+      $("btnRegistrarPaquete").classList.toggle("oculto", rol !== "residente" && !esAdminOsuper);
 
-      if (rol === "vigilante") {
+      // Botones operativos exclusivos del vigilante
+      $("btnRelojTop").classList.toggle("oculto", !esVigilante && rol !== "tecnico" && !esAdminOsuper);
+      $("btnRegistrarRondin").classList.toggle("oculto", !esVigilante && !esAdminOsuper);
+
+      if (esVigilante) {
         $("btnRelojTop").innerText = "⏱️ Asistencia Torre";
-        if (moduloActual !== "Asistencia" && moduloActual !== "Rondines") moduloActual = "Asistencia";
+        $("btnRegistrarRondin").innerText = "📹 Subir Rondín";
+        if (moduloActual !== "Asistencia" && moduloActual !== "Rondines") {
+          moduloActual = "Asistencia";
+        }
       } else if (rol === "residente") {
         $("btnNuevo").innerText = "+ Reportar Falla";
-        if (moduloActual !== "Incidencias" && moduloActual !== "Pagos" && moduloActual !== "Paqueteria") moduloActual = "Incidencias";
+        if (moduloActual !== "Incidencias" && moduloActual !== "Pagos" && moduloActual !== "Paqueteria") {
+          moduloActual = "Incidencias";
+        }
       } else {
         $("btnRelojTop").innerText = "⏱️ Checar";
         $("btnNuevo").innerText = "+ Nuevo";
@@ -790,6 +882,10 @@
     }
 
     function abrirModulo(mod, el) {
+      if (appData && appData.rolActivo === "vigilante" && mod !== "Asistencia" && mod !== "Rondines") {
+        mod = "Asistencia";
+      }
+
       moduloActual = mod;
       actualizarTituloModulo();
       columnaOrdenada = null;
@@ -808,7 +904,7 @@
       Membresias: ["usuario_id", "condominio_id", "rol", "departamento_id", "estado"],
       Accesos: ["acceso_id", "usuario_id", "email", "modulo", "fecha_hora", "dispositivo", "navegador"],
       Rondines: ["rondin_id", "condominio_id", "torre", "usuario_id", "fecha_hora", "distancia_mts", "estatus_geocerca", "video_url", "comentario"],
-      Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "descripcion", "prioridad", "estado"],
+      Incidencias: ["incidencia_id", "condominio_id", "departamento_id", "categoria", "descripcion", "prioridad", "estado", "foto_despues_url", "foto_rechazo_url"],
       Pagos: ["pago_id", "departamento_id", "concepto", "monto", "fecha_pago", "comprobante_url", "estado", "fecha_registro"],
       Paqueteria: ["paquete_id", "departamento_id", "empresa_paqueteria", "numero_guia", "descripcion", "estado", "fecha_registro"],
       Asistencia: ["asistencia_id", "usuario_id", "condominio_id", "especialidad", "tipo_registro", "fecha_hora", "distancia_mts", "estatus_geocerca", "foto_url"]
@@ -892,18 +988,29 @@
                         (d[c] === "Rechazado" || d[c] === "No Conforme" || d[c] === "Inactivo") ? "badge-Rechazado" : "badge-Pendiente";
             return `<td><span class="badge ${cls}">${d[c]}</span></td>`;
           }
+          // VISUALIZACIÓN LIGHTBOX PARA VIDEOS
           if (c === "video_url") {
-            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm btn-purple" style="text-decoration:none; padding:4px 8px; font-size:11px;">▶️ Ver Video</a>` : '<small style="color:#94a3b8">Sin video</small>'}</td>`;
+            return `<td>${d[c] ? `<button type="button" class="btn btn-sm btn-purple" style="padding:4px 8px; font-size:11px;" onclick="abrirLightbox('${d[c]}', 'video', 'Rondín de Seguridad - ${d.torre || ''}')">▶️ Ver Video</button>` : '<small style="color:#94a3b8">Sin video</small>'}</td>`;
           }
-          if (c === "comprobante_url" || c === "foto_url") {
-            return `<td>${d[c] ? `<a href="${d[c]}" target="_blank" class="btn btn-sm" style="text-decoration:none; padding:4px 8px; font-size:11px;">📷 Ver Foto</a>` : '<small style="color:#94a3b8">Sin archivo</small>'}</td>`;
+          // VISUALIZACIÓN LIGHTBOX PARA FOTOS Y COMPROBANTES
+          if (c === "comprobante_url" || c === "foto_url" || c === "foto_despues_url" || c === "foto_rechazo_url") {
+            let label = (c === "comprobante_url") ? "Comprobante" : 
+                        (c === "foto_despues_url") ? "Reparación" : 
+                        (c === "foto_rechazo_url") ? "Falla/Rechazo" : "Foto";
+            return `<td>${d[c] ? `<button type="button" class="btn btn-sm" style="padding:4px 8px; font-size:11px;" onclick="abrirLightbox('${d[c]}', 'imagen', '${label} - Folio ${d.incidencia_id || d.pago_id || ''}')">📷 Ver ${label}</button>` : '<small style="color:#94a3b8">Sin archivo</small>'}</td>`;
           }
           if (c === "distancia_mts") return `<td>${d[c]} m</td>`;
           return `<td>${d[c]||""}</td>`;
         }).join("");
 
         let btnAccion = "";
-        if (moduloActual === "Rondines") {
+        if (appData.rolActivo === "vigilante") {
+          if (moduloActual === "Rondines") {
+            btnAccion = `<span style="font-size:11px; color:var(--purple); font-weight:bold;">✓ Rondín Grabado</span>`;
+          } else {
+            btnAccion = `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Marcaje GPS</span>`;
+          }
+        } else if (moduloActual === "Rondines") {
           btnAccion = `<span style="font-size:11px; color:var(--purple); font-weight:bold;">✓ Rondín Grabado</span>`;
         } else if (moduloActual === "Asistencia" || moduloActual === "Accesos") {
           btnAccion = `<span style="font-size:11px; color:#64748b; font-weight:bold;">✓ Auditado</span>`;
@@ -921,7 +1028,7 @@
             btnAccion = `<span style="font-size:11px; color:var(--success);">✓ Entregado</span>`;
           }
         } else if (moduloActual === "Incidencias" && d.estado === "Por Validar") {
-          btnAccion = `<div style="display:flex; gap:4px;"><button class="btn btn-sm btn-success" onclick="abrirModalAceptar('${d.incidencia_id}')">✓</button><button class="btn btn-sm btn-danger" onclick="abrirModalRechazar('${d.incidencia_id}')">✕</button></div>`;
+          btnAccion = `<div style="display:flex; gap:4px;"><button class="btn btn-sm btn-success" onclick="abrirModalAceptar('${d.incidencia_id}')">✓ Validar</button><button class="btn btn-sm btn-danger" onclick="abrirModalRechazar('${d.incidencia_id}')">✕ Rechazar</button></div>`;
         } else {
           btnAccion = `<button class="btn btn-sm" onclick="modalCrud('${d[keyId]}')">✎ Editar</button>`;
         }
@@ -951,7 +1058,6 @@
 
       $("modalRegistrarRondin").classList.remove("oculto");
 
-      // Verificación de coordenadas GPS para el rondín
       navigator.geolocation.getCurrentPosition(
         pos => {
           ubicacionGPSRondin.lat = pos.coords.latitude;
@@ -971,7 +1077,7 @@
       const comentario = $("rondinComentario").value.trim();
 
       if (!condoId || !videoBase64Rondin || ubicacionGPSRondin.lat === null) {
-        return alert("Por favor graba el video en tiempo real y asegúrate de contar con señal GPS.");
+        return alert("Por favor graba el video en tiempo real y verifica tu señal GPS.");
       }
 
       const btn = $("btnEnviarRondin");
@@ -1000,7 +1106,7 @@
       }
     }
 
-    // --- ACCIONES DE ASISTENCIA Y DEMÁS MÓDULOS ---
+    // --- RELOJ CHECADOR (ASISTENCIA) ---
     function abrirModalChecador() {
       fotoBase64Capturada = null;
       ubicacionGPS = { lat: null, lon: null, precision: null };
@@ -1198,6 +1304,7 @@
 
     // --- CRUD Y ALTA ---
     function modalCrud(idEdit = null) {
+      if (appData.rolActivo === "vigilante") return;
       editandoId = idEdit;
       $("modalTit").innerText = idEdit ? `Editar ${moduloActual}` : `Nuevo ${moduloActual}`;
       const puedeEditar = appData.rolActivo === "superadmin" || appData.rolActivo === "administracion";
